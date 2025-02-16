@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 
-function MoteInformasjon({ moteInfo, setMoteInfo }) {
+function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [showInnkallingsDato, setShowInnkallingsDato] = useState(true);
+  const [pendingParticipant, setPendingParticipant] = useState(null);
+  const [showDropdown, setShowDropdown] = useState({ eier: false, fasilitator: false, referent: false });
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     // Sett starttid til 09:00 og dagens dato som innkallingsdato når komponenten lastes
@@ -15,10 +19,59 @@ function MoteInformasjon({ moteInfo, setMoteInfo }) {
     }
   }, []);
 
-  const handleMoteEierChange = (e) => {
-    const nyEier = e.target.value;
-    setMoteInfo({...moteInfo, eier: nyEier});
-    localStorage.setItem('sisteMoteEier', nyEier); // Lagre ny møteeier
+  useEffect(() => {
+    const savedPreference = localStorage.getItem('showInnkallingsDato');
+    if (savedPreference !== null) {
+      setShowInnkallingsDato(savedPreference === 'true');
+    }
+  }, []);
+
+  // Hent unike navn fra deltakerlisten
+  const deltakerNavn = deltakere
+    .map(d => d.navn)
+    .filter(navn => navn.trim() !== '');
+
+  // Hent alle unike navn fra deltakerlisten, inkludert de som er i roller
+  const getAllUniqueNames = () => {
+    const allNames = new Set([
+      ...deltakere.map(d => d.navn),
+      moteInfo.eier,
+      moteInfo.fasilitator,
+      moteInfo.referent
+    ]);
+    
+    // Fjern bare tomme verdier, ingen filtrering basert på input
+    return Array.from(allNames)
+      .filter(navn => navn && navn.trim() !== '')
+      .sort();
+  };
+
+  const handleRoleChange = (role, value) => {
+    setMoteInfo({ ...moteInfo, [role]: value });
+  };
+
+  const handleRoleBlur = (role, value) => {
+    if (!value || deltakerNavn.includes(value)) return;
+    
+    if (pendingParticipant?.navn !== value) {
+      const nyDeltaker = {
+        fagFunksjon: '',
+        navn: value,
+        forberedelser: '',
+        epost: ''
+      };
+
+      const emptyIndex = deltakere.findIndex(d => !d.navn);
+      if (emptyIndex !== -1) {
+        const oppdaterteDeltakere = [...deltakere];
+        oppdaterteDeltakere[emptyIndex] = nyDeltaker;
+        setDeltakere(oppdaterteDeltakere);
+      } else {
+        setDeltakere([...deltakere, nyDeltaker]);
+      }
+      
+      setPendingParticipant(nyDeltaker);
+    }
   };
 
   const handleTimeChange = (e) => {
@@ -36,6 +89,69 @@ function MoteInformasjon({ moteInfo, setMoteInfo }) {
     } else {
       setMoteInfo({ ...moteInfo, startTid: `${hours}:${formattedMinutes}` });
     }
+  };
+
+  const toggleInnkallingsDato = () => {
+    const newValue = !showInnkallingsDato;
+    setShowInnkallingsDato(newValue);
+    localStorage.setItem('showInnkallingsDato', newValue);
+    
+    if (!newValue) {
+      setMoteInfo({ ...moteInfo, innkallingsDato: '' });
+    }
+  };
+
+  // Lukk dropdown når man klikker utenfor
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown({ eier: false, fasilitator: false, referent: false });
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const renderRoleInput = (role, label) => {
+    const names = getAllUniqueNames();
+    
+    return (
+      <div className="relative" ref={dropdownRef}>
+        <label className="block text-sm font-medium text-gray-700">{label}</label>
+        <div className="relative">
+          <input
+            type="text"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
+            value={moteInfo[role]}
+            onChange={(e) => handleRoleChange(role, e.target.value)}
+            onFocus={() => setShowDropdown({ ...showDropdown, [role]: true })}
+            onBlur={(e) => {
+              setTimeout(() => {
+                handleRoleBlur(role, e.target.value);
+                setShowDropdown({ ...showDropdown, [role]: false });
+              }, 200);
+            }}
+          />
+          {showDropdown[role] && names.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+              {names.map((navn) => (
+                <div
+                  key={navn}
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                  onMouseDown={() => {
+                    handleRoleChange(role, navn);
+                    setShowDropdown({ ...showDropdown, [role]: false });
+                  }}
+                >
+                  {navn}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -96,8 +212,19 @@ function MoteInformasjon({ moteInfo, setMoteInfo }) {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Innkallingsdato</label>
+          <div className={showInnkallingsDato ? 'block' : 'hidden'}>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Innkallingsdato
+              </label>
+              <button
+                onClick={toggleInnkallingsDato}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                title={showInnkallingsDato ? "Skjul innkallingsdato" : "Vis innkallingsdato"}
+              >
+                {showInnkallingsDato ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             <input
               type="date"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
@@ -106,34 +233,31 @@ function MoteInformasjon({ moteInfo, setMoteInfo }) {
             />
           </div>
 
+          {!showInnkallingsDato && (
+            <div className="flex items-center justify-between p-2 border rounded-md bg-gray-50">
+              <span className="text-sm text-gray-500">Innkallingsdato er skjult</span>
+              <button
+                onClick={toggleInnkallingsDato}
+                className="text-blue-500 hover:text-blue-600 text-sm"
+              >
+                <div className="flex items-center gap-1">
+                  <Eye size={16} />
+                  Vis felt
+                </div>
+              </button>
+            </div>
+          )}
+
           <div>
-            <label className="block text-sm font-medium text-gray-700">Møteeier</label>
-            <input
-              type="text"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
-              value={moteInfo.eier}
-              onChange={handleMoteEierChange}
-            />
+            {renderRoleInput('eier', 'Møteeier')}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Fasilitator</label>
-            <input
-              type="text"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
-              value={moteInfo.fasilitator}
-              onChange={(e) => setMoteInfo({...moteInfo, fasilitator: e.target.value})}
-            />
+            {renderRoleInput('fasilitator', 'Fasilitator')}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Referent</label>
-            <input
-              type="text"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
-              value={moteInfo.referent}
-              onChange={(e) => setMoteInfo({...moteInfo, referent: e.target.value})}
-            />
+            {renderRoleInput('referent', 'Referent')}
           </div>
 
           <div className="md:col-span-2">

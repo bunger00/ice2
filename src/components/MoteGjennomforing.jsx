@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Clock, ArrowLeft, Check, Calendar, Image, X, Save, Printer, FileDown } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Clock, ArrowLeft, Check, Calendar, Image, X, Save, Printer, FileDown, Lock, Unlock } from 'lucide-react';
 import PrintView from './PrintView';
 
-function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStatus, lagreMote }) {
+function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStatus, setDeltakere, setAgendaPunkter, lagreMote, resetMote }) {
+  const location = useLocation();
+  
+  // Sett isLocked til true hvis vi kommer fra "Se møtereferat"
+  const [isLocked, setIsLocked] = useState(location.state?.shouldLock ?? true);
+  
   const [currentTime, setCurrentTime] = useState(new Date());
   const [deltakereStatus, setDeltakereStatus] = useState(
     deltakere.map(d => ({ 
       ...d, 
-      utfortStatus: 'none', // 'none' | 'green' | 'red'
-      oppmoteStatus: 'none' // 'none' | 'green' | 'red'
+      utfortStatus: d.utfortStatus || 'none',
+      oppmoteStatus: d.oppmoteStatus || 'none'
     }))
   );
   const [agendaStatus, setAgendaStatus] = useState(
@@ -23,8 +28,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     }))
   );
   const [aktivtPunkt, setAktivtPunkt] = useState(null);
-  const [statusOppnadd, setStatusOppnadd] = useState(null); // 'oppnadd' | 'ikke_oppnadd' | null
-  const [nyDato, setNyDato] = useState('');
+  const [statusOppnadd, setStatusOppnadd] = useState(moteInfo.statusOppnadd || null);
+  const [nyDato, setNyDato] = useState(moteInfo.nyDato || '');
 
   const navigate = useNavigate();
 
@@ -151,36 +156,96 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     document.body.appendChild(modal);
   };
 
+  const handleSave = () => {
+    setDeltakere([...deltakereStatus]);
+    setAgendaPunkter([...agendaStatus]);
+    
+    lagreMote({
+      statusOppnadd,
+      nyDato
+    });
+  };
+
+  const handleBack = () => {
+    setDeltakere([...deltakereStatus]);
+    setAgendaPunkter([...agendaStatus]);
+    
+    lagreMote({
+      statusOppnadd,
+      nyDato
+    });
+    resetMote();
+    navigate('/');
+  };
+
+  const toggleLock = () => {
+    if (!isLocked) {
+      handleSave();  // Lagre når vi låser
+    }
+    setIsLocked(!isLocked);
+  };
+
+  // Initialiser status når komponenten lastes
+  useEffect(() => {
+    // Behold eksisterende status hvis det finnes
+    setDeltakereStatus(
+      deltakere.map(d => ({
+        ...d,
+        utfortStatus: d.utfortStatus || 'none',
+        oppmoteStatus: d.oppmoteStatus || 'none'
+      }))
+    );
+
+    setAgendaStatus(
+      agendaPunkter.map(a => ({
+        ...a,
+        kommentar: a.kommentar || '',
+        startTid: a.startTid || null,
+        ferdig: a.ferdig || false,
+        tidBrukt: a.tidBrukt || null,
+        vedlegg: a.vedlegg || []
+      }))
+    );
+  }, [deltakere, agendaPunkter]);
+
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className={`min-h-screen bg-gray-100 py-8 ${isLocked ? 'opacity-75' : ''}`}>
       <div className="max-w-5xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Møtegjennomføring</h1>
           <button
-            onClick={() => navigate('/')}
+            onClick={toggleLock}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors"
+            title={isLocked ? "Lås opp møtereferatet" : "Lås møtereferatet"}
+          >
+            {isLocked ? <Lock size={20} /> : <Unlock size={20} />}
+            {isLocked ? "Lås opp" : "Lås"}
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={handleBack}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
           >
             <ArrowLeft size={20} />
-            Tilbake
+            Tilbake til møteagenda
           </button>
 
-          {!moteInfo.erGjennomfort && (
-            <div className="flex gap-3">
-              <button onClick={lagreMote}>
-                <Save size={16} />
-                Lagre møtereferat
-              </button>
-              <PrintView 
-                moteInfo={moteInfo}
-                deltakere={deltakereStatus}
-                agendaPunkter={agendaStatus}
-                statusOppnadd={statusOppnadd}
-                nyDato={nyDato}
-              >
-                <FileDown size={16} />
-                Eksporter møtereferat
-              </PrintView>
-            </div>
-          )}
+          <div className="flex gap-3">
+            <PrintView 
+              moteInfo={moteInfo}
+              deltakere={deltakereStatus}
+              agendaPunkter={agendaStatus}
+              status={status}
+              statusOppnadd={statusOppnadd}
+              nyDato={nyDato}
+              buttonClassName="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm rounded-md border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+            >
+              <FileDown size={14} />
+              Eksporter møtereferat
+            </PrintView>
+          </div>
         </div>
 
         {/* Klokke og møteinfo */}
@@ -230,8 +295,11 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                   </div>
                   <div className="col-span-1.5 flex justify-center">
                     <button
-                      onClick={() => syklusDeltakerStatus(index, 'utfortStatus')}
+                      onClick={() => !isLocked && syklusDeltakerStatus(index, 'utfortStatus')}
+                      disabled={isLocked}
                       className={`w-6 h-6 rounded-full border-2 transition-colors shadow-sm hover:shadow ${
+                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                      } ${
                         deltaker.utfortStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
                         deltaker.utfortStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
                         'bg-white border-gray-300 hover:border-gray-400'
@@ -240,8 +308,11 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                   </div>
                   <div className="col-span-1.5 flex justify-center">
                     <button
-                      onClick={() => syklusDeltakerStatus(index, 'oppmoteStatus')}
+                      onClick={() => !isLocked && syklusDeltakerStatus(index, 'oppmoteStatus')}
+                      disabled={isLocked}
                       className={`w-6 h-6 rounded-full border-2 transition-colors shadow-sm hover:shadow ${
+                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                      } ${
                         deltaker.oppmoteStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
                         deltaker.oppmoteStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
                         'bg-white border-gray-300 hover:border-gray-400'
@@ -313,8 +384,9 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                           placeholder="Kommentar... (Ctrl+V for å lime inn skjermbilde)"
                           value={punkt.kommentar}
                           onChange={(e) => handleAgendaKommentar(index, e.target.value)}
-                          onPaste={(e) => handlePasteImage(index, e)}
-                          className="w-full border rounded p-2 text-sm"
+                          onPaste={(e) => !isLocked && handlePasteImage(index, e)}
+                          disabled={isLocked}
+                          className={`w-full border rounded p-2 text-sm ${isLocked ? 'bg-gray-50' : ''}`}
                           rows="2"
                         />
                         <div className="absolute right-2 bottom-2 text-gray-400">
@@ -353,7 +425,10 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                         aktivtPunkt === index ? (
                           <button
                             onClick={() => ferdigstillAgendaPunkt(index)}
-                            className="flex items-center gap-1 px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600"
+                            disabled={isLocked}
+                            className={`flex items-center gap-1 px-3 py-1 ${
+                              isLocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'
+                            } text-white text-sm rounded`}
                           >
                             <Check size={14} />
                             Ferdig
@@ -361,7 +436,10 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                         ) : !punkt.startTid && aktivtPunkt === null && (
                           <button
                             onClick={() => startAgendaPunkt(index)}
-                            className="flex items-center gap-1 px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                            disabled={isLocked}
+                            className={`flex items-center gap-1 px-3 py-1 ${
+                              isLocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
+                            } text-white text-sm rounded`}
                           >
                             <Clock size={14} />
                             Start
@@ -390,22 +468,24 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
             <div className="p-4">
               <div className="flex items-center gap-4 mb-4">
                 <button
-                  onClick={() => setStatusOppnadd('oppnadd')}
+                  onClick={() => !isLocked && setStatusOppnadd('oppnadd')}
+                  disabled={isLocked}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
-                    statusOppnadd === 'oppnadd' 
-                      ? 'bg-green-500 text-white border-green-500' 
-                      : 'border-gray-300 hover:border-green-500'
+                    isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                  } ${
+                    statusOppnadd === 'oppnadd' ? 'bg-green-500 text-white border-green-500' : 'border-gray-300 hover:border-green-500'
                   }`}
                 >
                   <Check size={16} />
                   Oppnådd
                 </button>
                 <button
-                  onClick={() => setStatusOppnadd('ikke_oppnadd')}
+                  onClick={() => !isLocked && setStatusOppnadd('ikke_oppnadd')}
+                  disabled={isLocked}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
-                    statusOppnadd === 'ikke_oppnadd' 
-                      ? 'bg-gray-100 border-gray-400' 
-                      : 'border-gray-300 hover:border-gray-400'
+                    isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                  } ${
+                    statusOppnadd === 'ikke_oppnadd' ? 'bg-gray-100 border-gray-400' : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
                   <Calendar size={16} />
@@ -420,7 +500,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                     type="date"
                     value={nyDato}
                     onChange={(e) => setNyDato(e.target.value)}
-                    className="border rounded-md p-2 text-sm"
+                    disabled={isLocked}
+                    className={`border rounded-md p-2 text-sm ${isLocked ? 'bg-gray-50' : ''}`}
                     min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
@@ -428,6 +509,19 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
             </div>
           </div>
         </div>
+
+        {/* Lagreknapp */}
+        {!isLocked && (
+          <div className="fixed bottom-4 right-4">
+            <button
+              onClick={handleSave}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+            >
+              <Save size={16} />
+              Lagre endringer
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
