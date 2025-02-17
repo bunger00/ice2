@@ -8,7 +8,7 @@ export default {
     extend: {
       maxWidth: {
         '4xl': '56rem',
-      },
+      }
     },
   },
   plugins: [],

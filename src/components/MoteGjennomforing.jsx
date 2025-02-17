@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Clock, ArrowLeft, Check, Calendar, Image, X, Save, Printer, FileDown, Lock, Unlock } from 'lucide-react';
-import PrintView from './PrintView';
+import { Clock, ArrowLeft, Check, Calendar, Image, X, Save, Printer, FileDown, Lock, Unlock, ChevronDown, ChevronUp } from 'lucide-react';
+import MoteReferatPrintView from './MoteReferatPrintView';
+import Toast from './Toast';
+import ConfirmDialog from './ConfirmDialog';
 
-function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStatus, setDeltakere, setAgendaPunkter, lagreMote, resetMote }) {
+function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStatus, setDeltakere, setAgendaPunkter, lagreMote, resetMote, setVisMoteSkjema, setVisLagredeMoter }) {
   const location = useLocation();
   
   // Sett isLocked til true hvis vi kommer fra "Se møtereferat"
@@ -20,18 +22,41 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
   const [agendaStatus, setAgendaStatus] = useState(
     agendaPunkter.map(a => ({ 
       ...a, 
-      kommentar: '', 
-      startTid: null,
-      ferdig: false,
-      tidBrukt: null,
-      vedlegg: [] // Ny array for å lagre bilder
+      kommentar: a.kommentar || '', 
+      startTid: a.startTid || null,
+      ferdig: a.ferdig || false,
+      tidBrukt: a.tidBrukt || null,
+      vedlegg: a.vedlegg || [], // Behold eksisterende vedlegg
+      erLast: a.erLast || false,
+      notater: a.notater || '',
+      beslutninger: a.beslutninger || '',
+      aksjoner: a.aksjoner || []
     }))
   );
   const [aktivtPunkt, setAktivtPunkt] = useState(null);
-  const [statusOppnadd, setStatusOppnadd] = useState(moteInfo.statusOppnadd || null);
-  const [nyDato, setNyDato] = useState(moteInfo.nyDato || '');
+  const [statusOppnadd, setStatusOppnadd] = useState(
+    moteInfo.statusOppnadd || moteInfo.gjennomforingsStatus?.statusOppnadd || null
+  );
+  const [nyDato, setNyDato] = useState(
+    moteInfo.nyDato || moteInfo.gjennomforingsStatus?.nyDato || ''
+  );
+  const [statusInfo, setStatusInfo] = useState({
+    fullfortePunkter: 0,
+    gjenstaendePunkter: agendaPunkter.length,
+    totaltAntallPunkter: agendaPunkter.length
+  });
 
   const navigate = useNavigate();
+
+  // Legg til state for toast
+  const [showToast, setShowToast] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
+  const [expandedSections, setExpandedSections] = useState({
+    deltakere: true,
+    agenda: true,
+    status: true
+  });
 
   // Oppdater klokken hvert sekund
   useEffect(() => {
@@ -53,11 +78,17 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     
     oppdaterteDeltakere[index][statusType] = nextStatus[currentStatus];
     setDeltakereStatus(oppdaterteDeltakere);
+    
+    // Oppdater hovedstate med ny status
+    setDeltakere(oppdaterteDeltakere);
   };
 
   const handleAgendaKommentar = (index, kommentar) => {
     const oppdaterteAgendaPunkter = [...agendaStatus];
-    oppdaterteAgendaPunkter[index].kommentar = kommentar;
+    oppdaterteAgendaPunkter[index] = {
+      ...oppdaterteAgendaPunkter[index],
+      kommentar: kommentar
+    };
     setAgendaStatus(oppdaterteAgendaPunkter);
   };
 
@@ -156,38 +187,193 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     document.body.appendChild(modal);
   };
 
-  const handleSave = () => {
-    setDeltakere([...deltakereStatus]);
-    setAgendaPunkter([...agendaStatus]);
-    
-    lagreMote({
-      statusOppnadd,
-      nyDato
-    });
+  const handleSave = async () => {
+    try {
+      const oppdaterteAgendaPunkter = agendaStatus.map(punkt => ({
+        punkt: punkt.punkt || '',
+        ansvarlig: punkt.ansvarlig || '',
+        varighet: punkt.varighet || 15,
+        kommentar: punkt.kommentar || '',
+        startTid: punkt.startTid,
+        ferdig: punkt.ferdig || false,
+        tidBrukt: punkt.tidBrukt,
+        vedlegg: Array.isArray(punkt.vedlegg) ? punkt.vedlegg : [],
+        erLast: punkt.erLast || false,
+        notater: punkt.notater || '',
+        beslutninger: punkt.beslutninger || '',
+        aksjoner: Array.isArray(punkt.aksjoner) ? punkt.aksjoner : []
+      }));
+
+      const gjennomforingsData = {
+        id: moteInfo.id,
+        tema: moteInfo.tema,
+        dato: moteInfo.dato,
+        startTid: moteInfo.startTid,
+        eier: moteInfo.eier,
+        referent: moteInfo.referent,
+        mal: moteInfo.mal,
+        gjennomforingsStatus: {
+          statusOppnadd,
+          nyDato,
+          mal: moteInfo.mal
+        },
+        statusInfo: {
+          fullfortePunkter: agendaStatus.filter(p => p.ferdig).length,
+          gjenstaendePunkter: agendaStatus.filter(p => !p.ferdig).length,
+          totaltAntallPunkter: agendaStatus.length
+        },
+        deltakereStatus: deltakereStatus.map(d => ({
+          navn: d.navn,
+          fagFunksjon: d.fagFunksjon,
+          utfortStatus: d.utfortStatus,
+          oppmoteStatus: d.oppmoteStatus,
+          forberedelser: d.forberedelser,
+          epost: d.epost
+        })),
+        agendaPunkter: oppdaterteAgendaPunkter
+      };
+
+      // Oppdater hovedstate
+      setDeltakere(deltakereStatus);
+      setAgendaPunkter(oppdaterteAgendaPunkter);
+
+      const success = await lagreMote(true, gjennomforingsData);
+      if (success) {
+        setShowToast(true);
+      }
+      return success;
+    } catch (error) {
+      console.error('Detaljert feil ved lagring:', error);
+      alert(`Kunne ikke lagre møtet: ${error.message}`);
+      return false;
+    }
   };
 
-  const handleBack = () => {
+  // Oppdater harUlagredeEndringer-funksjonen
+  const harUlagredeEndringer = () => {
+    // Sjekk om det er endringer i deltakerstatus
+    const harDeltakerEndringer = deltakereStatus.some((d, index) => {
+      const original = deltakere[index];
+      return d.utfortStatus !== (original.utfortStatus || 'none') || 
+             d.oppmoteStatus !== (original.oppmoteStatus || 'none');
+    });
+
+    // Sjekk om det er endringer i agendapunkter
+    const harAgendaEndringer = agendaStatus.some((a, index) => {
+      const original = agendaPunkter[index];
+      return a.kommentar !== (original.kommentar || '') ||
+             (a.vedlegg?.length || 0) !== (original.vedlegg?.length || 0) ||
+             a.ferdig !== (original.ferdig || false) ||
+             a.notater !== (original.notater || '') ||
+             a.beslutninger !== (original.beslutninger || '') ||
+             (a.aksjoner?.length || 0) !== (original.aksjoner?.length || 0) ||
+             a.erLast !== (original.erLast || false);
+    });
+
+    // Sjekk om det er endringer i møtestatus
+    const originalStatusOppnadd = moteInfo.gjennomforingsStatus?.statusOppnadd || null;
+    const originalNyDato = moteInfo.gjennomforingsStatus?.nyDato || '';
+    
+    const harStatusEndringer = 
+      statusOppnadd !== originalStatusOppnadd || 
+      nyDato !== originalNyDato;
+
+    const harEndringer = harDeltakerEndringer || harAgendaEndringer || harStatusEndringer;
+    console.log('Har endringer:', { 
+      deltaker: harDeltakerEndringer, 
+      agenda: harAgendaEndringer, 
+      status: harStatusEndringer 
+    });
+
+    return harEndringer;
+  };
+
+  // Oppdater handleBack-funksjonen
+  const handleBack = async () => {
+    try {
+      // Hvis møtet er låst (møtereferat), naviger direkte tilbake
+      if (isLocked) {
+        navigate('/');
+        setVisMoteSkjema(false);
+        setVisLagredeMoter(true);  // Sørg for at lagrede møter vises
+        resetMote();
+        return;
+      }
+
+      // Ellers, sjekk om det er endringer som må lagres
+      if (harUlagredeEndringer()) {
+        setShowConfirmDialog(true);
+        return;
+      }
+
+      // Hvis ingen endringer, bare naviger tilbake
+      navigate('/');
+      setVisMoteSkjema(false);
+      setVisLagredeMoter(true);  // Sørg for at lagrede møter vises
+      resetMote();
+    } catch (error) {
+      console.error('Feil ved tilbakenavigering:', error);
+      alert('Kunne ikke navigere tilbake. Vennligst prøv igjen.');
+    }
+  };
+
+  // Oppdater handleConfirmSave-funksjonen
+  const handleConfirmSave = async () => {
+    try {
+      console.log('Starter lagring og navigering...');
+      const success = await handleSave();
+      
+      if (success) {
+        console.log('Lagring vellykket, venter før navigering...');
+        // Vent litt så brukeren ser toast-meldingen
+        setTimeout(() => {
+          console.log('Navigerer tilbake...');
+          setShowConfirmDialog(false);
+          navigerTilbake();
+        }, 800); // Øk tiden litt for å sikre at toast vises
+      } else {
+        console.log('Lagring feilet');
+        setShowConfirmDialog(false);
+        alert('Kunne ikke lagre endringene. Vennligst prøv igjen.');
+      }
+    } catch (error) {
+      console.error('Feil ved lagring og navigering:', error);
+      setShowConfirmDialog(false);
+      alert('Kunne ikke lagre endringene: ' + error.message);
+    }
+  };
+
+  // Oppdater navigerTilbake-funksjonen
+  const navigerTilbake = () => {
+    // Kun oppdater states hvis det faktisk er endringer
+    if (harUlagredeEndringer()) {
     setDeltakere([...deltakereStatus]);
     setAgendaPunkter([...agendaStatus]);
+    }
     
-    lagreMote({
-      statusOppnadd,
-      nyDato
-    });
+    // Reset og cleanup
+    setVisMoteSkjema(false);
+    setVisLagredeMoter(true);  // Sørg for at lagrede møter vises
     resetMote();
+    
+    // Naviger til hovedsiden
     navigate('/');
   };
 
-  const toggleLock = () => {
+  const toggleLock = async () => {
+    try {
     if (!isLocked) {
-      handleSave();  // Lagre når vi låser
+        await handleSave();  // Vent på lagring før låsing
     }
     setIsLocked(!isLocked);
+    } catch (error) {
+      console.error('Feil ved låsing:', error);
+      alert('Kunne ikke låse møtet. Vennligst prøv igjen.');
+    }
   };
 
   // Initialiser status når komponenten lastes
   useEffect(() => {
-    // Behold eksisterende status hvis det finnes
     setDeltakereStatus(
       deltakere.map(d => ({
         ...d,
@@ -195,21 +381,73 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         oppmoteStatus: d.oppmoteStatus || 'none'
       }))
     );
+  }, [deltakere]);
 
-    setAgendaStatus(
-      agendaPunkter.map(a => ({
-        ...a,
-        kommentar: a.kommentar || '',
-        startTid: a.startTid || null,
-        ferdig: a.ferdig || false,
-        tidBrukt: a.tidBrukt || null,
-        vedlegg: a.vedlegg || []
-      }))
-    );
-  }, [deltakere, agendaPunkter]);
+  // Oppdater status når agendapunkter endres
+  useEffect(() => {
+    const fullforte = agendaStatus.filter(punkt => punkt.ferdig).length;
+    setStatusInfo({
+      fullfortePunkter: fullforte,
+      gjenstaendePunkter: agendaStatus.length - fullforte,
+      totaltAntallPunkter: agendaStatus.length
+    });
+  }, [agendaStatus]);
+
+  // Håndter låsing av agendapunkter
+  const toggleLas = (index) => {
+    const oppdaterteAgendaPunkter = [...agendaStatus];
+    oppdaterteAgendaPunkter[index] = {
+      ...oppdaterteAgendaPunkter[index],
+      erLast: !oppdaterteAgendaPunkter[index].erLast
+    };
+    setAgendaStatus(oppdaterteAgendaPunkter);
+  };
+
+  // Oppdater et agendapunkt
+  const oppdaterAgendaPunkt = (index, endringer) => {
+    const oppdaterteAgendaPunkter = [...agendaStatus];
+    oppdaterteAgendaPunkter[index] = {
+      ...oppdaterteAgendaPunkter[index],
+      ...endringer
+    };
+    setAgendaStatus(oppdaterteAgendaPunkter);
+  };
+
+  // Legg til en useEffect for å oppdatere status når moteInfo endres
+  useEffect(() => {
+    if (moteInfo.gjennomforingsStatus) {
+      setStatusOppnadd(moteInfo.gjennomforingsStatus.statusOppnadd);
+      setNyDato(moteInfo.gjennomforingsStatus.nyDato || '');
+    }
+  }, [moteInfo]);
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   return (
     <div className={`min-h-screen bg-gray-100 py-8 ${isLocked ? 'opacity-75' : ''}`}>
+      {showToast && (
+        <Toast 
+          message="Møtet er lagret!" 
+          onClose={() => setShowToast(false)} 
+        />
+      )}
+      
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={() => {
+          setShowConfirmDialog(false);
+          navigerTilbake(); // Navigerer tilbake uten å lagre
+        }}
+        onConfirm={handleConfirmSave}
+        title="Ulagrede endringer"
+        message="Det ser ut som du har ulagrede endringer. Ønsker du å lagre endringene før du går tilbake til agendaen?"
+      />
+
       <div className="max-w-5xl mx-auto px-4">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Møtegjennomføring</h1>
@@ -233,18 +471,15 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
           </button>
 
           <div className="flex gap-3">
-            <PrintView 
+            <MoteReferatPrintView 
               moteInfo={moteInfo}
               deltakere={deltakereStatus}
               agendaPunkter={agendaStatus}
-              status={status}
-              statusOppnadd={statusOppnadd}
-              nyDato={nyDato}
               buttonClassName="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm rounded-md border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
             >
               <FileDown size={14} />
               Eksporter møtereferat
-            </PrintView>
+            </MoteReferatPrintView>
           </div>
         </div>
 
@@ -269,8 +504,16 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         </div>
 
         {/* Deltakerliste */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-2xl font-bold mb-6">Deltakere</h2>
+        <div className="bg-white rounded-lg shadow-sm mb-6 p-4">
+          <div 
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => toggleSection('deltakere')}
+          >
+            <h2 className="text-xl font-semibold">Deltakere</h2>
+            {expandedSections.deltakere ? <ChevronUp /> : <ChevronDown />}
+          </div>
+          {expandedSections.deltakere && (
+            <div className="mt-4">
           <div className="border rounded-lg overflow-hidden">
             <div className="grid grid-cols-12 gap-4 p-4 bg-gray-50 border-b text-gray-800">
               <div className="col-span-3 text-xl font-bold">Deltaker</div>
@@ -323,11 +566,21 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
               ))}
             </div>
           </div>
+            </div>
+          )}
         </div>
 
         {/* Agenda */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Agenda</h2>
+        <div className="bg-white rounded-lg shadow-sm mb-6 p-4">
+          <div 
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => toggleSection('agenda')}
+          >
+            <h2 className="text-xl font-semibold">Agenda</h2>
+            {expandedSections.agenda ? <ChevronUp /> : <ChevronDown />}
+          </div>
+          {expandedSections.agenda && (
+            <div className="mt-4">
           <div className="border rounded-lg overflow-hidden">
             {/* Overskrifter */}
             <div className="grid grid-cols-12 gap-4 p-4 bg-gray-50 border-b text-gray-800">
@@ -452,11 +705,21 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
               ))}
             </div>
           </div>
+            </div>
+          )}
         </div>
 
         {/* Status med oppnådd/ikke oppnådd */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold mb-6">Status</h2>
+        <div className="bg-white rounded-lg shadow-sm mb-6 p-4">
+          <div 
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => toggleSection('status')}
+          >
+            <h2 className="text-xl font-semibold">Status</h2>
+            {expandedSections.status ? <ChevronUp /> : <ChevronDown />}
+          </div>
+          {expandedSections.status && (
+            <div className="mt-4">
           <div className="border rounded-lg overflow-hidden">
             <div className="p-4 bg-gray-50 border-b">
               <div className="text-lg font-medium mb-2">Målsetting for møtet:</div>
@@ -485,7 +748,9 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                   className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
                     isLocked ? 'opacity-50 cursor-not-allowed' : ''
                   } ${
-                    statusOppnadd === 'ikke_oppnadd' ? 'bg-gray-100 border-gray-400' : 'border-gray-300 hover:border-gray-400'
+                        statusOppnadd === 'ikke_oppnadd' 
+                          ? 'bg-red-500 text-white border-red-500' 
+                          : 'border-gray-300 hover:border-red-500'
                   }`}
                 >
                   <Calendar size={16} />
@@ -508,6 +773,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
               )}
             </div>
           </div>
+            </div>
+          )}
         </div>
 
         {/* Lagreknapp */}

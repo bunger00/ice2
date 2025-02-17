@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
+import AIMalValidering from './AIMalValidering';
 
 function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -272,16 +273,25 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
             />
           </div>
 
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Målsetting for møtet
-            </label>
-            <textarea
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
-              rows="2"
-              value={moteInfo.mal}
-              onChange={(e) => setMoteInfo({...moteInfo, mal: e.target.value})}
-            />
+          <div className="md:col-span-2 flex gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Målsetting for møtet
+              </label>
+              <textarea
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
+                rows="2"
+                value={moteInfo.mal}
+                onChange={(e) => setMoteInfo({...moteInfo, mal: e.target.value})}
+              />
+            </div>
+            
+            <div className="w-1/3 pt-6">
+              <AIMalValidering 
+                mal={moteInfo.mal}
+                onUpdateMal={(nyMal) => setMoteInfo({...moteInfo, mal: nyMal})}
+              />
+            </div>
           </div>
         </div>
       )}

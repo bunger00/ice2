@@ -141,10 +141,10 @@ function Deltakere({ deltakere, setDeltakere, disabled }) {
           </div>
 
           <div className="grid grid-cols-12 gap-4 mb-2 font-medium text-sm text-gray-700">
-            <div className="col-span-2">Funksjon</div>
+            <div className="col-span-1">Funksjon</div>
             <div className="col-span-3">Navn</div>
             <div className="col-span-3">E-post</div>
-            <div className="col-span-3">Forberedelser</div>
+            <div className="col-span-4">Forberedelser</div>
             <div className="col-span-1"></div>
           </div>
 
@@ -152,22 +152,43 @@ function Deltakere({ deltakere, setDeltakere, disabled }) {
             <div className="divide-y">
               {deltakere.map((deltaker, index) => (
                 <div key={index} className="grid grid-cols-12 gap-4 p-4 items-center">
-                  <div className="col-span-2">
+                  <div className="col-span-1">
                     <div className="relative">
                       <input
                         type="text"
-                        list={`fagfunksjoner-${index}`}
                         value={deltaker.fagFunksjon}
                         onChange={(e) => handleDeltakerEndring(index, 'fagFunksjon', e.target.value)}
-                        className="w-full border rounded p-2"
-                        placeholder="Velg eller skriv"
+                        onFocus={(e) => e.target.setAttribute('list', 'funksjoner')}
+                        onBlur={(e) => e.target.removeAttribute('list')}
+                        className="w-full border rounded p-2 bg-white cursor-pointer focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="Velg eller skriv funksjon"
                         disabled={disabled}
                       />
-                      <datalist id={`fagfunksjoner-${index}`}>
-                        {fagFunksjoner.map((funksjon) => (
-                          <option key={funksjon} value={funksjon} />
-                        ))}
+                      <datalist id="funksjoner">
+                        <option value="BH">BH - Byggherre</option>
+                        <option value="PGL">PGL - Prosjekteringsleder</option>
+                        <option value="ARK">ARK - Arkitekt</option>
+                        <option value="RIB">RIB - Rådgivende Ingeniør Bygg</option>
+                        <option value="RIV">RIV - Rådgivende Ingeniør VVS</option>
+                        <option value="RIE">RIE - Rådgivende Ingeniør Elektro</option>
+                        <option value="RIVA">RIVA - Rådgivende Ingeniør VA</option>
+                        <option value="LARK">LARK - Landskapsarkitekt</option>
+                        <option value="RIBr">RIBr - Rådgivende Ingeniør Brann</option>
+                        <option value="RIAKU">RIAKU - Rådgivende Ingeniør Akustikk</option>
+                        <option value="RIBy">RIBy - Rådgivende Ingeniør Bygningsfysikk</option>
+                        <option value="RIM">RIM - Rådgivende Ingeniør Miljø</option>
+                        <option value="RIG">RIG - Rådgivende Ingeniør Geoteknikk</option>
+                        <option value="ENT">ENT - Entreprenør</option>
+                        <option value="UE">UE - Underentreprenør</option>
+                        <option value="BL">BL - Byggeleder</option>
+                        <option value="PL">PL - Prosjektleder</option>
+                        <option value="HMS">HMS - HMS-ansvarlig</option>
+                        <option value="KPR">KPR - Kvalitetsansvarlig</option>
+                        <option value="BAS">BAS - Bas</option>
                       </datalist>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                        <ChevronDown size={16} className="text-gray-400" />
+                      </div>
                     </div>
                   </div>
                   <div className="col-span-3">
@@ -191,14 +212,30 @@ function Deltakere({ deltakere, setDeltakere, disabled }) {
                       disabled={disabled}
                     />
                   </div>
-                  <div className="col-span-3">
-                    <input
-                      type="text"
+                  <div className="col-span-4">
+                    <textarea
                       value={deltaker.forberedelser}
-                      onChange={(e) => handleDeltakerEndring(index, 'forberedelser', e.target.value)}
-                      className="w-full border rounded p-2"
+                      onChange={(e) => {
+                        // Reset høyde først
+                        e.target.style.height = '38px';  // Basis høyde
+                        
+                        // Sett ny høyde basert på innhold
+                        const scrollHeight = e.target.scrollHeight;
+                        const newHeight = Math.min(Math.max(38, scrollHeight), 76);  // Min 38px, max 76px
+                        e.target.style.height = newHeight + 'px';
+                        
+                        // Oppdater verdien
+                        handleDeltakerEndring(index, 'forberedelser', e.target.value);
+                      }}
+                      className="w-full border rounded p-2 resize-none overflow-hidden"
                       placeholder="Hva må forberedes?"
                       disabled={disabled}
+                      rows="1"
+                      style={{
+                        height: '38px',  // Start med én linje
+                        minHeight: '38px',
+                        maxHeight: '76px'
+                      }}
                     />
                   </div>
                   <div className="col-span-1 flex justify-end">
