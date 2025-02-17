@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { Save, PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown } from 'lucide-react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, BrowserRouter as Router } from 'react-router-dom';
 import MoteInformasjon from './components/MoteInformasjon';
 import Deltakere from './components/Deltakere';
 import Agenda from './components/Agenda';
