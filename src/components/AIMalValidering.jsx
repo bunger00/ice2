@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import Anthropic from '@anthropic-ai/sdk';
 import { CheckCircle2 } from 'lucide-react';
 
+const anthropic = new Anthropic({
+  apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
+  dangerouslyAllowBrowser: true
+});
+
 function AIMalValidering({ mal, onUpdateMal }) {
   const [aiVurdering, setAiVurdering] = useState('');
   const [forslag, setForslag] = useState('');
@@ -10,37 +15,25 @@ function AIMalValidering({ mal, onUpdateMal }) {
   const validerMal = async () => {
     setIsLoading(true);
     try {
-      const anthropic = new Anthropic({
-        apiKey: import.meta.env.VITE_ANTHROPIC_API_KEY,
-        dangerouslyAllowBrowser: true
+      const response = await fetch('/api/validate-goal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mal })
       });
-
-      console.log('Starter AI-vurdering med nøkkel:', import.meta.env.VITE_ANTHROPIC_API_KEY ? 'Nøkkel finnes' : 'Ingen nøkkel');
       
-      const message = await anthropic.messages.create({
-        model: "claude-3-opus-20240229",
-        max_tokens: 1000,
-        messages: [{
-          role: "user",
-          content: `Vurder følgende målsetting for et møte og gi konstruktiv tilbakemelding: "${mal}". 
-                    Gi også et konkret forslag til forbedret målformulering hvis nødvendig.
-                    Svar på norsk i følgende format:
-                    VURDERING: Din vurdering her
-                    FORSLAG: Ditt forslag til forbedret målformulering her (hvis nødvendig)`
-        }]
-      });
-
-      console.log('Respons fra AI:', message);
-
-      const response = message.content[0].text;
-      const [vurdering, forslag] = response.split('FORSLAG:');
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error);
+      
+      const message = data.data;
+      const responseText = message.content[0].text;
+      const [vurdering, forslag] = responseText.split('FORSLAG:');
       
       setAiVurdering(vurdering.replace('VURDERING:', '').trim());
       const rensetForslag = forslag?.trim()
         .match(/"([^"]*)"/)?.[ 1 ] || forslag?.trim() || '';
       setForslag(rensetForslag);
     } catch (error) {
-      console.error('Detaljert feil ved AI-vurdering:', error);
+      console.error('Feil ved AI-vurdering:', error);
       setAiVurdering(`Kunne ikke utføre vurdering: ${error.message}`);
     }
     setIsLoading(false);
