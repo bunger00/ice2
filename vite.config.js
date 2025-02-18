@@ -11,15 +11,11 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: 'globalThis'
-      }
-    }
+    include: ['react-router-dom']
   },
   build: {
     commonjsOptions: {
-      include: [/firebase/]
+      include: [/node_modules/]
     },
     rollupOptions: {
       external: ['firebase/auth/internal']

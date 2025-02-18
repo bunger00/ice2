@@ -28,12 +28,12 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
   };
 
   const handleExport = () => {
-    try {
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'pt',
-        format: 'a4'
-      });
+      try {
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'pt',
+          format: 'a4'
+        });
 
       // Legg til Lean-logoen
       pdf.addImage('/Logolean.png', 'PNG', 450, 20, 100, 40);
@@ -228,9 +228,9 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
       pdf.text(beregnSluttTid(), 45, y);
       pdf.text('Møteslutt', 120, y);
 
-      pdf.save(`${moteInfo.tema || 'moteagenda'}.pdf`);
-    } catch (error) {
-      console.error('Eksport feilet:', error);
+        pdf.save(`${moteInfo.tema || 'moteagenda'}.pdf`);
+      } catch (error) {
+        console.error('Eksport feilet:', error);
     }
   };
 
@@ -240,11 +240,11 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
   return (
     <div className="inline-block agenda-print-view">
       {children}
-      <button 
+      <button
         className="hidden export-trigger" 
         onClick={handleExport}
       />
-    </div>
+      </div>
   );
 }
 
