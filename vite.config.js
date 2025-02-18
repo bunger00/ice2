@@ -23,6 +23,7 @@ export default defineConfig({
     },
     rollupOptions: {
       external: ['firebase/auth/internal']
-    }
+    },
+    outDir: 'dist'
   }
 })
