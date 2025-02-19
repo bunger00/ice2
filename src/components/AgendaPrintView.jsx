@@ -33,7 +33,7 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
     return startDato.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     try {
       const pdf = new jsPDF({
         orientation: 'portrait',
@@ -41,68 +41,27 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
         format: 'a4'
       });
 
-      let currentY = 20;  // Start høyere oppe for logoen
+      let currentY = 20;
       let xPos = 40;
-      let startY = 0;  // Legg til startY i toppnivå scope
+      let startY = 0;
       const pageHeight = pdf.internal.pageSize.height;
       const marginBottom = 40;
       const sectionSpacing = 40;
 
-      // Funksjon for å sjekke om vi trenger ny side
-      const checkNewPage = (neededSpace, tableHeaders, colWidths, currentTable) => {
-        if (currentY + neededSpace > pageHeight - marginBottom) {
-          // Tegn bunnlinje før sideskift
-          if (tableHeaders && colWidths) {
-            const tableWidth = sum(colWidths);
-            pdf.setDrawColor(230, 230, 230);
-            pdf.line(40, currentY, 40 + tableWidth, currentY);
-          }
-
-          pdf.addPage();
-          currentY = 40;
-          startY = currentY;
-
-          // Tegn header på ny side
-          if (tableHeaders && colWidths) {
-            const tableWidth = sum(colWidths);
-            
-            // Header med grå bakgrunn
-            pdf.setFillColor(247, 247, 247);
-            pdf.rect(40, currentY, tableWidth, 30, 'F');
-
-            // Header tekst
-            let xPos = 40;
-            pdf.setFontSize(10);
-            tableHeaders.forEach((header, i) => {
-              pdf.setFont(undefined, 'bold');
-              pdf.setTextColor(0, 0, 0);
-              pdf.text(header, xPos + 10, currentY + 20);
-              xPos += colWidths[i];
-            });
-
-            // Tegn horisontale linjer for header
-            pdf.setDrawColor(230, 230, 230);
-            pdf.line(40, currentY, 40 + tableWidth, currentY);  // Topp
-            pdf.line(40, currentY + 30, 40 + tableWidth, currentY + 30);  // Bunn
-
-            // Tegn vertikale linjer for header
-            xPos = 40;
-            colWidths.forEach(width => {
-              pdf.line(xPos, currentY, xPos, currentY + 30);
-              xPos += width;
-            });
-            pdf.line(xPos, currentY, xPos, currentY + 30);  // Siste vertikale linje
-
-            currentY += 30;
-            startY = currentY;
-            return true;
-          }
-        }
-        return false;
+      // Last inn logoen først og vent på at den er lastet
+      const loadImage = () => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          // Bruk full URL til logoen
+          img.src = window.location.origin + '/Logolean.png';
+        });
       };
 
-      // Legg til Lean-logoen først
-      pdf.addImage('/Logolean.png', 'PNG', 450, currentY, 100, 40);
+      // Vent på at logoen er lastet før vi fortsetter
+      const logo = await loadImage();
+      pdf.addImage(logo, 'PNG', 450, currentY, 100, 40);
       
       // Flytt ned for overskriften
       currentY += 80;  // Gi plass til logoen og litt spacing
