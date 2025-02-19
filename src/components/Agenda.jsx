@@ -37,6 +37,32 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
     return format(addMinutes(startDato, totalMinutter), 'HH:mm');
   };
 
+  const renderAnsvarligInput = (index, punkt) => {
+    // Hent unike navn fra deltakerlisten
+    const deltakerNavn = deltakere
+      .map(d => d.navn)
+      .filter(navn => navn.trim() !== '');
+
+    return (
+      <div className="relative">
+        <input
+          type="text"
+          value={punkt.ansvarlig}
+          onChange={(e) => handleAgendaEndring(index, 'ansvarlig', e.target.value)}
+          className="w-full border rounded p-2 bg-white cursor-pointer focus:border-blue-500 focus:ring-blue-500"
+          placeholder="Velg eller skriv navn"
+          list="deltakere-list"
+          disabled={disabled}
+        />
+        <datalist id="deltakere-list">
+          {deltakerNavn.map((navn, i) => (
+            <option key={i} value={navn} />
+          ))}
+        </datalist>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6 mb-6">
       <div 
@@ -108,21 +134,9 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                             </div>
 
                             <div className="flex items-center">
-                              <select
-                                value={punkt.ansvarlig}
-                                onChange={(e) => handleAgendaEndring(index, 'ansvarlig', e.target.value)}
-                                className="w-full border rounded p-2"
-                                disabled={disabled}
-                              >
-                                <option value="">Velg ansvarlig</option>
-                                {deltakere.map((deltaker, i) => (
-                                  deltaker.navn && (
-                                    <option key={i} value={deltaker.navn}>
-                                      {deltaker.navn}
-                                    </option>
-                                  )
-                                ))}
-                              </select>
+                              <div className="p-2 w-full">
+                                {renderAnsvarligInput(index, punkt)}
+                              </div>
                             </div>
 
                             <div className="flex justify-center">
