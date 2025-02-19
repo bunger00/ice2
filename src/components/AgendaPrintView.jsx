@@ -38,7 +38,15 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'pt',
-        format: 'a4'
+        format: 'a4',
+        compress: true  // Aktiver komprimering
+      });
+
+      // Optimaliser PDF-innstillinger
+      pdf.setProperties({
+        title: moteInfo.tema || 'Møteagenda',
+        creator: 'ICE Meeting',
+        producer: 'ICE Meeting'
       });
 
       let currentY = 20;
@@ -48,20 +56,88 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
       const marginBottom = 40;
       const sectionSpacing = 40;
 
-      // Last inn logoen først og vent på at den er lastet
+      // Legg til checkNewPage funksjon
+      const checkNewPage = (neededSpace, tableHeaders, colWidths, currentTable) => {
+        if (currentY + neededSpace > pageHeight - marginBottom) {
+          // Tegn bunnlinje før sideskift
+          if (tableHeaders && colWidths) {
+            const tableWidth = sum(colWidths);
+            pdf.setDrawColor(230, 230, 230);
+            pdf.line(40, currentY, 40 + tableWidth, currentY);
+          }
+
+          pdf.addPage();
+          currentY = 40;
+          startY = currentY;
+
+          // Tegn header på ny side
+          if (tableHeaders && colWidths) {
+            const tableWidth = sum(colWidths);
+            
+            // Header med grå bakgrunn
+            const [r, g, b] = optimizeColor(247, 247, 247);
+            pdf.setFillColor(r, g, b);
+            pdf.rect(40, currentY, tableWidth, 30, 'F');
+
+            // Header tekst
+            let xPos = 40;
+            pdf.setFontSize(10);
+            tableHeaders.forEach((header, i) => {
+              pdf.setFont(undefined, 'bold');
+              pdf.setTextColor(0, 0, 0);
+              pdf.text(header, xPos + 10, currentY + 20);
+              xPos += colWidths[i];
+            });
+
+            // Tegn horisontale linjer for header
+            pdf.setDrawColor(230, 230, 230);
+            pdf.line(40, currentY, 40 + tableWidth, currentY);  // Topp
+            pdf.line(40, currentY + 30, 40 + tableWidth, currentY + 30);  // Bunn
+
+            // Tegn vertikale linjer for header
+            xPos = 40;
+            colWidths.forEach(width => {
+              pdf.line(xPos, currentY, xPos, currentY + 30);
+              xPos += width;
+            });
+            pdf.line(xPos, currentY, xPos, currentY + 30);  // Siste vertikale linje
+
+            currentY += 30;
+            startY = currentY;
+            return true;
+          }
+        }
+        return false;
+      };
+
+      // Last inn logoen med optimaliserte innstillinger
       const loadImage = () => {
         return new Promise((resolve, reject) => {
           const img = new Image();
-          img.onload = () => resolve(img);
+          img.onload = () => {
+            // Opprett en canvas for å optimalisere bildet
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Sett størrelse til det vi faktisk trenger
+            canvas.width = 100;
+            canvas.height = 40;
+            
+            // Tegn bildet med smoothing
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, 100, 40);
+            
+            resolve(canvas.toDataURL('image/png', 0.8));  // Reduser kvalitet litt
+          };
           img.onerror = reject;
-          // Bruk full URL til logoen
           img.src = window.location.origin + '/Logolean.png';
         });
       };
 
-      // Vent på at logoen er lastet før vi fortsetter
-      const logo = await loadImage();
-      pdf.addImage(logo, 'PNG', 450, currentY, 100, 40);
+      // Vent på at logoen er lastet og optimalisert
+      const optimizedLogo = await loadImage();
+      pdf.addImage(optimizedLogo, 'PNG', 450, currentY, 100, 40, '', 'FAST');
       
       // Flytt ned for overskriften
       currentY += 80;  // Gi plass til logoen og litt spacing
@@ -89,8 +165,9 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
         const infoTableWidth = sum(infoColWidths1);
         const baseRowHeight = 25;
 
-        // Header med grå bakgrunn - første rad
-        pdf.setFillColor(247, 247, 247);
+        // For første møteinfo-tabell
+        const [headerR1, headerG1, headerB1] = optimizeColor(247, 247, 247);
+        pdf.setFillColor(headerR1, headerG1, headerB1);
         pdf.rect(40, currentY, infoTableWidth, 30, 'F');
 
         // Header tekst - første rad
@@ -133,8 +210,9 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
         const infoHeaders2 = ['Hensikt med møtet', 'Målsetting for møtet'];
         const infoColWidths2 = [240, 240];
         
-        // Header med grå bakgrunn - andre rad
-        pdf.setFillColor(247, 247, 247);
+        // For andre møteinfo-tabell
+        const [headerR2, headerG2, headerB2] = optimizeColor(247, 247, 247);
+        pdf.setFillColor(headerR2, headerG2, headerB2);
         pdf.rect(40, currentY, infoTableWidth, 30, 'F');
 
         // Header tekst - andre rad
@@ -190,8 +268,9 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
         const tableWidth = sum(colWidths);
         const baseRowHeight = 25;
 
-        // Header med grå bakgrunn
-        pdf.setFillColor(247, 247, 247);
+        // For deltakertabell
+        const [headerR3, headerG3, headerB3] = optimizeColor(247, 247, 247);
+        pdf.setFillColor(headerR3, headerG3, headerB3);
         pdf.rect(40, currentY, tableWidth, 30, 'F');
 
         // Header tekst
@@ -252,12 +331,14 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
         const agendaTableWidth = sum(agendaColWidths);
         const baseRowHeight = 25;
         
-        // Tegn tabellramme
-        pdf.setDrawColor(230, 230, 230);
+        // For agendatabell
+        const [headerR4, headerG4, headerB4] = optimizeColor(247, 247, 247);
+        pdf.setFillColor(headerR4, headerG4, headerB4);
         pdf.rect(40, currentY, agendaTableWidth, 30 + (agendaPunkter.length * baseRowHeight), 'S');
 
         // Header med grå bakgrunn
-        pdf.setFillColor(247, 247, 247);
+        const [r, g, b] = optimizeColor(247, 247, 247);
+        pdf.setFillColor(r, g, b);
         pdf.rect(40, currentY, agendaTableWidth, 30, 'F');
         
         // Header tekst
@@ -328,7 +409,15 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
         pdf.text('Møteslutt', 120, currentY + 15);
       }
 
+      // Optimaliser output
+      const pdfOutput = pdf.output('datauristring', {
+        compress: true,
+        optimalSize: true
+      });
+
+      // Lagre den optimaliserte PDF-en
       pdf.save(`${moteInfo.tema || 'moteagenda'}.pdf`);
+
     } catch (error) {
       console.error('Eksport feilet:', error);
       alert('Kunne ikke generere PDF: ' + error.message);
@@ -337,6 +426,16 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
 
   // Hjelpefunksjoner
   const sum = arr => arr.reduce((a, b) => a + b, 0);
+
+  // Reduser fargedybden for fyllfarger
+  const optimizeColor = (r, g, b) => {
+    // Rund av fargeverdier til nærmeste 16
+    return [
+      Math.round(r / 16) * 16,
+      Math.round(g / 16) * 16,
+      Math.round(b / 16) * 16
+    ];
+  };
 
   return (
     <div className="inline-block agenda-print-view">

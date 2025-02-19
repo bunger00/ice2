@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
-import { Save, PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut } from 'lucide-react';
+import { Save, PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut, Share } from 'lucide-react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import MoteInformasjon from './components/MoteInformasjon';
 import Deltakere from './components/Deltakere';
@@ -15,8 +15,10 @@ import { Dialog } from '@headlessui/react';
 import Login from './components/Login';
 import { auth, db } from './firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
-import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, serverTimestamp, orderBy, onSnapshot } from 'firebase/firestore';
 import Toast from './components/Toast';
+import VersjonsHistorikk from './components/VersjonsHistorikk';
+import DeltMote from './components/DeltMote';
 
 function App() {
   const [moteInfo, setMoteInfo] = useState({
@@ -62,6 +64,11 @@ function App() {
 
   const [showToast, setShowToast] = useState(false);
 
+  const [versjoner, setVersjoner] = useState([]);
+  const [sisteEndring, setSisteEndring] = useState(null);
+
+  const [toastMessage, setToastMessage] = useState('');
+
   const handleDragEnd = (result) => {
     if (!result.destination) return;
 
@@ -69,108 +76,50 @@ function App() {
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
-    setAgendaPunkter(items);
+    handleAgendaChange(items);
   };
 
   const lagreMote = async (fraGjennomforing = false, gjennomforingsData = null) => {
     try {
-      if (!auth.currentUser) {
-        console.log('Ingen bruker er logget inn');
-        alert('Du må være logget inn for å lagre møter');
-        return;
-      }
-
-      if (!moteInfo.tema) {
-        alert('Møtet må ha en tittel før det kan lagres');
-        return;
-      }
-
-      // Viktig: Sett erGjennomfort til false når vi lagrer fra hovedsiden
-      const erGjennomfort = fraGjennomforing === true;
-      
-      console.log('Starter lagring av møte...', { fraGjennomforing, erGjennomfort });
-
       const moteData = {
-        userId: auth.currentUser.uid,
-        tema: String(moteInfo.tema || ''),
-        dato: String(moteInfo.dato || ''),
-        startTid: String(moteInfo.startTid || ''),
-        innkallingsDato: String(moteInfo.innkallingsDato || ''),
-        eier: String(moteInfo.eier || ''),
-        fasilitator: String(moteInfo.fasilitator || ''),
-        referent: String(moteInfo.referent || ''),
-        hensikt: String(moteInfo.hensikt || ''),
-        mal: String(moteInfo.mal || ''),
-        deltakere: deltakere.map(d => ({
-          fagFunksjon: String(d.fagFunksjon || ''),
-          navn: String(d.navn || ''),
-          epost: String(d.epost || ''),
-          forberedelser: String(d.forberedelser || ''),
-          utfortStatus: String(d.utfortStatus || 'none'),
-          oppmoteStatus: String(d.oppmoteStatus || 'none')
-        })),
-        agendaPunkter: agendaPunkter.map(a => ({
-          punkt: String(a.punkt || ''),
-          ansvarlig: String(a.ansvarlig || ''),
-          varighet: Number(a.varighet || 15),
-          kommentar: String(a.kommentar || ''),
-          startTid: a.startTid ? String(a.startTid) : null,
-          ferdig: Boolean(a.ferdig),
-          tidBrukt: a.tidBrukt ? Number(a.tidBrukt) : null,
-          vedlegg: Array.isArray(a.vedlegg) ? a.vedlegg : [],
-          erLast: Boolean(a.erLast),
-          notater: String(a.notater || ''),
-          beslutninger: String(a.beslutninger || ''),
-          aksjoner: Array.isArray(a.aksjoner) ? a.aksjoner.map(String) : []
-        })),
-        erGjennomfort: erGjennomfort,
-        // Kun inkluder gjennomføringsstatus hvis møtet er gjennomført
-        ...(erGjennomfort && gjennomforingsData ? {
-          gjennomforingsStatus: {
-            statusOppnadd: String(gjennomforingsData?.statusOppnadd || ''),
-            nyDato: String(gjennomforingsData?.nyDato || ''),
-            fullfortePunkter: Number(gjennomforingsData?.statusInfo?.fullfortePunkter || 0),
-            gjenstaendePunkter: Number(gjennomforingsData?.statusInfo?.gjenstaendePunkter || 0),
-            totaltAntallPunkter: Number(gjennomforingsData?.statusInfo?.totaltAntallPunkter || 0),
-            deltakereStatus: Array.isArray(gjennomforingsData?.deltakereStatus) 
-              ? gjennomforingsData.deltakereStatus.map(d => ({
-                  navn: String(d.navn || ''),
-                  fagFunksjon: String(d.fagFunksjon || ''),
-                  utfortStatus: String(d.utfortStatus || 'none'),
-                  oppmoteStatus: String(d.oppmoteStatus || 'none')
-                }))
-              : []
-          }
-        } : {}),
-        sistOppdatert: new Date().toISOString()
+        tema: moteInfo.tema,
+        dato: moteInfo.dato,
+        startTid: moteInfo.startTid,
+        innkallingsDato: moteInfo.innkallingsDato,
+        eier: moteInfo.eier,
+        fasilitator: moteInfo.fasilitator,
+        referent: moteInfo.referent,
+        hensikt: moteInfo.hensikt,
+        mal: moteInfo.mal,
+        deltakere,
+        agendaPunkter,
+        sistOppdatert: serverTimestamp(),
+        userId: auth.currentUser.uid
       };
 
-      console.log('MoteData som skal lagres:', moteData);
-
-      const moterRef = collection(db, 'moter');
-
       if (moteInfo.id) {
-        console.log('Oppdaterer eksisterende møte:', moteInfo.id);
         const moteRef = doc(db, 'moter', moteInfo.id);
-        await updateDoc(moteRef, moteData);
-        console.log('Møte oppdatert');
-      } else {
-        console.log('Oppretter nytt møte');
-        const docRef = await addDoc(moterRef, {
+        const historikkRef = collection(db, 'moter', moteInfo.id, 'historikk');
+        
+        // Lagre nåværende versjon i historikk
+        await addDoc(historikkRef, {
           ...moteData,
-          opprettetDato: new Date().toISOString()
+          tidspunkt: serverTimestamp(),
+          endretAv: auth.currentUser.email
         });
-        console.log('Nytt møte opprettet med ID:', docRef.id);
+
+        // Oppdater møtet
+        await updateDoc(moteRef, moteData);
+      } else {
+        const docRef = await addDoc(collection(db, 'moter'), moteData);
         setMoteInfo(prev => ({ ...prev, id: docRef.id }));
       }
 
-      await hentLagredeMoter();
       setShowToast(true);
-      return true;
+      setTimeout(() => setShowToast(false), 3000);
     } catch (error) {
       console.error('Feil ved lagring:', error);
-      alert(`Kunne ikke lagre møtet: ${error.message}`);
-      return false;
+      alert('Kunne ikke lagre møtet. Vennligst prøv igjen.');
     }
   };
 
@@ -227,18 +176,18 @@ function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('Auth status:', user ? `Logged in as ${user.email}` : 'Not logged in');
-      if (user) {
-        console.log('User ID:', user.uid);
-        setIsAuthenticated(true);
-        hentLagredeMoter();
-        setVisMoteSkjema(false);
-        setVisLagredeMoter(true);
-      } else {
+      const path = window.location.pathname;
+      // Ikke redirect hvis vi er på en delt møte-URL
+      if (!user && !path.startsWith('/delt/')) {
         setIsAuthenticated(false);
         setVisMoteSkjema(false);
         setVisLagredeMoter(true);
         navigate('/login');
+      } else if (user) {
+        setIsAuthenticated(true);
+        hentLagredeMoter();
+        setVisMoteSkjema(false);
+        setVisLagredeMoter(true);
       }
       setLoading(false);
     });
@@ -246,7 +195,7 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  const lastMote = (moteData) => {
+  const lastMote = async (moteData) => {
     if (!moteData) {
       console.error('Ugyldig møtedata:', moteData);
       return;
@@ -293,6 +242,17 @@ function App() {
     setErGjennomfort(moteData.erGjennomfort || false);
     setVisLagredeMoter(false);
     setVisMoteSkjema(true);
+
+    // Hent versjoner for møtet
+    await hentVersjoner(moteData.id);
+
+    // Start historikk-lytting
+    const unsubscribeHistorikk = await hentHistorikk(moteData.id);
+    
+    // Cleanup når komponenten unmountes
+    return () => {
+      if (unsubscribeHistorikk) unsubscribeHistorikk();
+    };
   };
 
   const harEndringer = () => {
@@ -507,6 +467,297 @@ function App() {
     }
   };
 
+  // Funksjon for å lagre ny versjon i Firestore
+  const lagreVersjon = async () => {
+    try {
+      if (!moteInfo.id) return; // Ikke lagre versjoner for umøter som ikke er lagret
+
+      const versjonData = {
+        moteId: moteInfo.id,
+        tidspunkt: serverTimestamp(),
+        endretAv: moteInfo.fasilitator || 'Ukjent',
+        data: {
+          moteInfo,
+          deltakere,
+          agendaPunkter
+        }
+      };
+
+      // Legg til i Firestore
+      await addDoc(collection(db, 'versjoner'), versjonData);
+
+      // Hent oppdaterte versjoner
+      await hentVersjoner(moteInfo.id);
+    } catch (error) {
+      console.error('Feil ved lagring av versjon:', error);
+    }
+  };
+
+  // Funksjon for å hente versjoner fra Firestore
+  const hentVersjoner = async (moteId) => {
+    try {
+      const versjonerRef = collection(db, 'versjoner');
+      const q = query(
+        versjonerRef, 
+        where('moteId', '==', moteId),
+        orderBy('tidspunkt', 'desc')
+      );
+      
+      const snapshot = await getDocs(q);
+      const versjonListe = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        tidspunkt: doc.data().tidspunkt?.toDate() || new Date()
+      }));
+
+      setVersjoner(versjonListe);
+    } catch (error) {
+      console.error('Feil ved henting av versjoner:', error);
+    }
+  };
+
+  // Oppdater useEffect for automatisk lagring
+  useEffect(() => {
+    if (sisteEndring && moteInfo.id) {
+      const timer = setTimeout(() => {
+        lagreVersjon();
+      }, 10 * 60 * 1000); // 10 minutter
+      
+      return () => clearTimeout(timer);
+    }
+  }, [sisteEndring]);
+
+  // Oppdater gjenopprettVersjon funksjonen
+  const gjenopprettVersjon = async (versjon) => {
+    if (!moteInfo.id || !versjon) return;
+
+    try {
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      await updateDoc(moteRef, {
+        tema: versjon.endringer.tema,
+        deltakere: versjon.endringer.deltakere,
+        agendaPunkter: versjon.endringer.agendaPunkter,
+        sistOppdatert: serverTimestamp()
+      });
+
+      setToastMessage('Tidligere versjon gjenopprettet');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (error) {
+      console.error('Feil ved gjenoppretting:', error);
+      alert('Kunne ikke gjenopprette versjonen');
+    }
+  };
+
+  // Oppdater genererDelingsLink funksjonen
+  const genererDelingsLink = async () => {
+    try {
+      if (!moteInfo.id) {
+        alert('Du må lagre møtet først før du kan dele det');
+        return;
+      }
+
+      // Generer en tilfeldig aksesstoken
+      const aksessToken = Math.random().toString(36).substring(2, 15) + 
+                         Math.random().toString(36).substring(2, 15);
+
+      // Oppdater møtet med aksesstoken
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      await updateDoc(moteRef, {
+        aksessToken,
+        erDelt: true
+      });
+
+      // Generer full URL
+      const baseUrl = window.location.origin;
+      const delingsUrl = `${baseUrl}/delt/${moteInfo.id}/${aksessToken}`;
+
+      // Kopier til utklippstavle
+      await navigator.clipboard.writeText(delingsUrl);
+      
+      // Vis bekreftelse med Toast
+      setToastMessage('Delingslink kopiert til utklippstavle!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+
+    } catch (error) {
+      console.error('Feil ved generering av delingslink:', error);
+      alert('Kunne ikke generere delingslink. Vennligst prøv igjen.');
+    }
+  };
+
+  // Lytt til endringer i aktivt møte
+  useEffect(() => {
+    if (!moteInfo.id) return;
+
+    console.log('Setter opp real-time lytter for møte:', moteInfo.id);
+    
+    const unsubscribe = onSnapshot(doc(db, 'moter', moteInfo.id), (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        // Oppdater møtedata
+        setMoteInfo({
+          id: doc.id,
+          tema: data.tema || '',
+          dato: data.dato || '',
+          startTid: data.startTid || '09:00',
+          innkallingsDato: data.innkallingsDato || '',
+          eier: data.eier || '',
+          fasilitator: data.fasilitator || '',
+          referent: data.referent || '',
+          hensikt: data.hensikt || '',
+          mal: data.mal || ''
+        });
+        
+        // Oppdater deltakere og agenda
+        setDeltakere(data.deltakere || []);
+        setAgendaPunkter(data.agendaPunkter || []);
+        
+        console.log('Mottok real-time oppdatering for møte');
+      }
+    }, (error) => {
+      console.error('Feil ved real-time oppdatering:', error);
+    });
+
+    // Cleanup listener når møtet endres eller komponenten unmountes
+    return () => unsubscribe();
+  }, [moteInfo.id]);
+
+  // Legg til en funksjon for umiddelbar oppdatering
+  const oppdaterMoteData = async (oppdateringer) => {
+    if (!moteInfo.id) return;
+
+    try {
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      const oppdateringer = {
+        tema: oppdateringer.tema,
+        dato: oppdateringer.dato,
+        startTid: oppdateringer.startTid,
+        innkallingsDato: oppdateringer.innkallingsDato,
+        eier: oppdateringer.eier,
+        fasilitator: oppdateringer.fasilitator,
+        referent: oppdateringer.referent,
+        hensikt: oppdateringer.hensikt,
+        mal: oppdateringer.mal,
+        sistOppdatert: serverTimestamp()
+      };
+
+      updateDoc(moteRef, oppdateringer);
+      // Ikke sett state direkte - la onSnapshot håndtere det
+    } catch (error) {
+      console.error('Feil ved oppdatering:', error);
+    }
+  };
+
+  // Oppdater hvordan vi håndterer endringer i møtedata
+  const handleMoteInfoChange = (oppdatertMoteInfo) => {
+    if (!moteInfo.id) return;
+
+    try {
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      const oppdateringer = {
+        tema: oppdatertMoteInfo.tema,
+        dato: oppdatertMoteInfo.dato,
+        startTid: oppdatertMoteInfo.startTid,
+        innkallingsDato: oppdatertMoteInfo.innkallingsDato,
+        eier: oppdatertMoteInfo.eier,
+        fasilitator: oppdatertMoteInfo.fasilitator,
+        referent: oppdatertMoteInfo.referent,
+        hensikt: oppdatertMoteInfo.hensikt,
+        mal: oppdatertMoteInfo.mal,
+        sistOppdatert: serverTimestamp()
+      };
+
+      updateDoc(moteRef, oppdateringer);
+      // Ikke sett state direkte - la onSnapshot håndtere det
+    } catch (error) {
+      console.error('Feil ved oppdatering:', error);
+    }
+  };
+
+  // Oppdater handleDeltakereChange
+  const handleDeltakereChange = (oppdaterteDeltakere) => {
+    if (!moteInfo.id) return;
+
+    try {
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      updateDoc(moteRef, {
+        deltakere: oppdaterteDeltakere.map(d => ({
+          fagFunksjon: d.fagFunksjon || '',
+          navn: d.navn || '',
+          epost: d.epost || '',
+          forberedelser: d.forberedelser || '',
+          utfortStatus: d.utfortStatus || 'none',
+          oppmoteStatus: d.oppmoteStatus || 'none'
+        })),
+        sistOppdatert: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Feil ved oppdatering av deltakere:', error);
+    }
+  };
+
+  // Oppdater handleAgendaChange
+  const handleAgendaChange = (oppdatertAgenda) => {
+    if (!moteInfo.id) return;
+
+    try {
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      updateDoc(moteRef, {
+        agendaPunkter: oppdatertAgenda.map(a => ({
+          punkt: a.punkt || '',
+          ansvarlig: a.ansvarlig || '',
+          varighet: a.varighet || 15,
+          fullfort: a.fullfort || false,
+          kommentar: a.kommentar || '',
+          startTid: a.startTid || null,
+          ferdig: a.ferdig || false,
+          tidBrukt: a.tidBrukt || null,
+          vedlegg: Array.isArray(a.vedlegg) ? a.vedlegg : [],
+          erLast: a.erLast || false,
+          notater: a.notater || '',
+          beslutninger: a.beslutninger || ''
+        })),
+        sistOppdatert: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Feil ved oppdatering av agenda:', error);
+    }
+  };
+
+  // Legg til en funksjon for å hente historikk
+  const hentHistorikk = async (moteId) => {
+    if (!moteId) return;
+
+    try {
+      const historikkRef = collection(db, 'moter', moteId, 'historikk');
+      const q = query(historikkRef, orderBy('tidspunkt', 'desc'));
+      
+      // Sett opp real-time lytter for historikk
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const historikkData = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          historikkData.push({
+            id: doc.id,
+            tidspunkt: data.tidspunkt?.toDate() || new Date(),
+            endretAv: data.endretAv,
+            endringer: {
+              tema: data.tema,
+              deltakere: data.deltakere,
+              agendaPunkter: data.agendaPunkter
+            }
+          });
+        });
+        setVersjoner(historikkData);
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('Feil ved henting av historikk:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -520,24 +771,26 @@ function App() {
 
   return (
     <Routes>
-      <Route 
-        path="/login" 
-        element={
-          !isAuthenticated ? (
-            <Login setIsAuthenticated={setIsAuthenticated} />
-          ) : (
-            <Navigate to="/" />
-          )
-        } 
-      />
-      <Route 
-        path="/" 
+      <Route path="/login" element={
+        !isAuthenticated ? (
+          <Login setIsAuthenticated={setIsAuthenticated} />
+        ) : (
+          <Navigate to="/" />
+        )
+      } />
+      
+      {/* Delt møte route - ingen auth sjekk */}
+      <Route path="/delt/:moteId/:token" element={<DeltMote />} />
+      
+      {/* Beskyttet hovedrute */}
+      <Route
+        path="/"
         element={
           isAuthenticated ? (
             <div className="min-h-screen bg-gray-100">
               {showToast && (
                 <Toast 
-                  message="Agenda er lagret!" 
+                  message={toastMessage || 'Agenda er lagret!'} 
                   onClose={() => setShowToast(false)} 
                 />
               )}
@@ -584,6 +837,16 @@ function App() {
                             Lagre agenda
                           </span>
                         </button>
+                        <button 
+                          onClick={genererDelingsLink}
+                          className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
+                          title="Del møte"
+                        >
+                          <Share size={18} />
+                          <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            Del møte
+                          </span>
+                        </button>
                         <AgendaPrintView
                           moteInfo={moteInfo}
                           deltakere={deltakere}
@@ -602,6 +865,10 @@ function App() {
                           </span>
                         </button>
                       </div>
+                      <VersjonsHistorikk 
+                        versjoner={versjoner}
+                        onVelgVersjon={gjenopprettVersjon}
+                      />
                     </div>
                   </div>
                 </div>
@@ -649,10 +916,10 @@ function App() {
                     <DragDropContext onDragEnd={handleDragEnd}>
                       <Agenda 
                         agendaPunkter={agendaPunkter}
-                        setAgendaPunkter={setAgendaPunkter}
+                        setAgendaPunkter={handleAgendaChange}
                         startTid={moteInfo.startTid}
                         deltakere={deltakere}
-                        disabled={erGjennomfort}
+                        onDragEnd={handleDragEnd}
                       />
                     </DragDropContext>
                   </div>
