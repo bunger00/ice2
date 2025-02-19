@@ -47,6 +47,10 @@ body {
   .no-print {
     display: none !important;
   }
+  .agenda-punkt-input {
+    font-size: 1rem !important;
+    line-height: 1.5rem !important;
+  }
 }
 
 .agenda-punkt-input {
