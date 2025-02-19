@@ -28,12 +28,26 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
   };
 
   const handleExport = () => {
-      try {
-        const pdf = new jsPDF({
-          orientation: 'portrait',
-          unit: 'pt',
-          format: 'a4'
-        });
+    try {
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'a4'
+      });
+
+      let currentY = 40;
+      const pageHeight = pdf.internal.pageSize.height;
+      const marginBottom = 40;
+
+      // Funksjon for å sjekke om vi trenger ny side
+      const checkNewPage = (neededSpace) => {
+        if (currentY + neededSpace > pageHeight - marginBottom) {
+          pdf.addPage();
+          currentY = 40;
+          return true;
+        }
+        return false;
+      };
 
       // Legg til Lean-logoen
       pdf.addImage('/Logolean.png', 'PNG', 450, 20, 100, 40);
@@ -43,194 +57,159 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
       pdf.setTextColor(0, 0, 0);
       pdf.text('Møteagenda', 40, 40);
 
-      // Møteinformasjon overskrift (flyttet opp siden vi fjerner linjen)
+      // Møteinformasjon overskrift
       pdf.setFontSize(16);
       pdf.setTextColor(51, 102, 255);
-      pdf.text('Møteinformasjon', 40, 70);  // Justert y-posisjon fra 80 til 70
+      pdf.text('Møteinformasjon', 40, 70);
 
-      // Reset farger før møteinfo-grid
-      pdf.setFillColor(247, 247, 247);  // Lys grå bakgrunn
-      pdf.setDrawColor(230, 230, 230);  // Lys grå border
-      pdf.setTextColor(0, 0, 0);        // Svart tekst
-      pdf.setFontSize(10);
+      // Møteinformasjon grid
+      const infoBoxes = [
+        { title: 'Dato og tid', content: `${moteInfo.dato} kl. ${moteInfo.startTid}`, width: 160 },
+        { title: 'Møteeier', content: moteInfo.eier || '', width: 160 },
+        { title: 'Fasilitator', content: moteInfo.fasilitator || '', width: 160 }
+      ];
 
-      // Funksjon for å skrive fet overskrift
-      const skrivFetOverskrift = (tekst, x, y) => {
+      let xPos = 40;
+      infoBoxes.forEach(box => {
+        pdf.setFillColor(247, 247, 247);
+        pdf.rect(xPos, 90, box.width, 60, 'F');
+        pdf.setDrawColor(230, 230, 230);
+        pdf.rect(xPos, 90, box.width, 60, 'S');
+        
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(10);
         pdf.setFont(undefined, 'bold');
-        pdf.text(tekst, x, y);
+        pdf.text(box.title, xPos + 10, 110);
         pdf.setFont(undefined, 'normal');
-      };
+        pdf.text(box.content, xPos + 10, 130);
+        
+        xPos += box.width + 10;
+      });
 
-      // Dato og tid
-      pdf.setFillColor(247, 247, 247);  // Gjenta farge for hver boks
-      pdf.rect(40, 100, 200, 60, 'F');
-      pdf.rect(40, 100, 200, 60, 'S');
-      skrivFetOverskrift('Dato og tid', 50, 120);
-      pdf.text(`${moteInfo.dato} kl. ${moteInfo.startTid}`, 50, 140);
+      currentY = 170;
 
-      // Møteeier
-      pdf.setFillColor(247, 247, 247);
-      pdf.rect(250, 100, 200, 60, 'F');
-      pdf.rect(250, 100, 200, 60, 'S');
-      skrivFetOverskrift('Møteeier', 260, 120);
-      pdf.text(moteInfo.eier || '', 260, 140);
-
-      // Fasilitator
-      pdf.setFillColor(247, 247, 247);
-      pdf.rect(460, 100, 100, 60, 'F');
-      pdf.rect(460, 100, 100, 60, 'S');
-      skrivFetOverskrift('Fasilitator', 470, 120);
-      pdf.text(moteInfo.fasilitator || '', 470, 140);
-
-      // Referent
-      pdf.setFillColor(247, 247, 247);
-      pdf.rect(40, 170, 200, 60, 'F');
-      pdf.rect(40, 170, 200, 60, 'S');
-      skrivFetOverskrift('Referent', 50, 190);
-      pdf.text(moteInfo.referent || '', 50, 210);
-
-      // Hensikt med møtet
-      if (moteInfo.hensikt) {
-        pdf.setFillColor(247, 247, 247);
-        pdf.rect(250, 170, 310, 60, 'F');
-        pdf.rect(250, 170, 310, 60, 'S');
-        skrivFetOverskrift('Hensikt med møtet', 260, 190);
-        const hensiktLinjer = pdf.splitTextToSize(moteInfo.hensikt, 290);
-        hensiktLinjer.forEach((linje, index) => {
-          pdf.text(linje, 260, 210 + (index * 15));
-        });
-      }
-
-      // Målsetting for møtet
-      if (moteInfo.mal) {
-        pdf.setFillColor(247, 247, 247);
-        pdf.rect(40, 240, 520, 60, 'F');
-        pdf.rect(40, 240, 520, 60, 'S');
-        skrivFetOverskrift('Målsetting for møtet', 50, 260);
-        const malLinjer = pdf.splitTextToSize(moteInfo.mal, 500);
-        malLinjer.forEach((linje, index) => {
-          pdf.text(linje, 50, 280 + (index * 15));
-        });
-      }
-
-      // Deltakere overskrift
-      pdf.setFontSize(16);
+      // Deltakere header
+      checkNewPage(200);
+      pdf.setFontSize(10);
       pdf.setTextColor(51, 102, 255);
-      pdf.text('Deltakere', 40, 340);
-
-      // Hjelpefunksjon for å bryte tekst
-      const splitText = (text, maxWidth) => {
-        if (!text) return [''];
-        return pdf.splitTextToSize(text, maxWidth);
-      };
+      pdf.text('Deltakere', 40, currentY);
+      currentY += 30;
 
       // Deltakertabell
-      const deltakerStartY = 360;
-      const colWidths = [150, 120, 200];  // Justerte bredder
+      const tableHeaders = ['Navn', 'Funksjon', 'Forberedelser'];
+      const colWidths = [150, 120, 200];
+      const tableWidth = sum(colWidths);
       
       // Tegn tabellramme
       pdf.setDrawColor(230, 230, 230);
-      pdf.rect(40, deltakerStartY, sum(colWidths), 25 + (deltakere.length * 25), 'S');
+      pdf.rect(40, currentY, tableWidth, 30 + (deltakere.length * 40), 'S');
 
-      // Header
+      // Header med grå bakgrunn
       pdf.setFillColor(247, 247, 247);
-      pdf.rect(40, deltakerStartY, sum(colWidths), 25, 'F');
+      pdf.rect(40, currentY, tableWidth, 30, 'F');
       
       // Vertikale linjer
-      let xPos = 40;
+      xPos = 40;
       colWidths.forEach(width => {
-        pdf.line(xPos, deltakerStartY, xPos, deltakerStartY + 25 + (deltakere.length * 25));
+        pdf.line(xPos, currentY, xPos, currentY + 30 + (deltakere.length * 40));
         xPos += width;
       });
 
-      // Header tekst for deltakertabell
-      pdf.setFontSize(10);
-      pdf.setTextColor(0, 0, 0);
-      skrivFetOverskrift('Navn', 45, deltakerStartY + 17);
-      skrivFetOverskrift('Funksjon', 200, deltakerStartY + 17);
-      skrivFetOverskrift('Forberedelser', 330, deltakerStartY + 17);
+      // Header tekst
+      xPos = 40;
+      tableHeaders.forEach((header, i) => {
+        pdf.setFont(undefined, 'bold');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(header, xPos + 10, currentY + 20);
+        xPos += colWidths[i];
+      });
+      
+      currentY += 30;
 
-      // Deltakerrader med tekstbryting
-      let y = deltakerStartY + 25;
+      // Deltakerrader med horisontale linjer
       deltakere.forEach((deltaker, index) => {
-        // Horisontale linjer
-        pdf.line(40, y, 40 + sum(colWidths), y);
+        checkNewPage(40);
         
-        // Del opp tekst som er for lang
-        const navn = splitText(deltaker.navn || '', 140);
-        const funksjon = splitText(deltaker.fagFunksjon || '', 110);
-        const forberedelser = splitText(deltaker.forberedelser || '', 190);
-
-        // Beregn høyeste antall linjer for å justere cellehøyde
-        const maxLines = Math.max(navn.length, funksjon.length, forberedelser.length);
-        const lineHeight = 12;
+        // Horisontal linje
+        pdf.line(40, currentY, 40 + tableWidth, currentY);
         
-        // Tegn tekst
-        pdf.text(navn, 45, y + 12);
-        pdf.text(funksjon, 200, y + 12);
-        pdf.text(forberedelser, 330, y + 12);
-
-        y += Math.max(25, (maxLines * lineHeight));  // Minimum 25pt høyde
+        pdf.setFont(undefined, 'normal');
+        pdf.text(deltaker.navn || '', 50, currentY + 20);
+        pdf.text(deltaker.fagFunksjon || '', 200, currentY + 20);
+        pdf.text(deltaker.forberedelser || '', 330, currentY + 20);
+        
+        currentY += 40;
       });
 
-      // Agenda overskrift
-      pdf.setFontSize(14);
+      // Agenda header
+      checkNewPage(200);
+      currentY += 20;
+      pdf.setFontSize(10);
       pdf.setTextColor(51, 102, 255);
-      pdf.text('Agenda', 40, y + 40);
+      pdf.text('Agenda', 40, currentY);
+      currentY += 30;
 
       // Agendatabell
-      const agendaStartY = y + 60;
-      const agendaColWidths = [70, 70, 240, 90];  // Justerte bredder
+      const agendaHeaders = ['Tid', 'Varighet', 'Agendapunkt', 'Ansvarlig'];
+      const agendaColWidths = [70, 70, 240, 90];
+      const agendaTableWidth = sum(agendaColWidths);
       
       // Tegn tabellramme
-      pdf.rect(40, agendaStartY, sum(agendaColWidths), 25 + (agendaPunkter.length * 25), 'S');
+      pdf.setDrawColor(230, 230, 230);
+      pdf.rect(40, currentY, agendaTableWidth, 30 + (agendaPunkter.length * 40), 'S');
 
-      // Header
+      // Header med grå bakgrunn
       pdf.setFillColor(247, 247, 247);
-      pdf.rect(40, agendaStartY, sum(agendaColWidths), 25, 'F');
-
+      pdf.rect(40, currentY, agendaTableWidth, 30, 'F');
+      
       // Vertikale linjer
       xPos = 40;
       agendaColWidths.forEach(width => {
-        pdf.line(xPos, agendaStartY, xPos, agendaStartY + 25 + (agendaPunkter.length * 25));
+        pdf.line(xPos, currentY, xPos, currentY + 30 + (agendaPunkter.length * 40));
         xPos += width;
       });
 
-      // Header tekst for agendatabell
-      pdf.setFontSize(10);
-      pdf.setTextColor(0, 0, 0);
-      skrivFetOverskrift('Tid', 45, agendaStartY + 17);
-      skrivFetOverskrift('Varighet', 120, agendaStartY + 17);
-      skrivFetOverskrift('Agendapunkt', 200, agendaStartY + 17);
-      skrivFetOverskrift('Ansvarlig', 430, agendaStartY + 17);
+      // Header tekst
+      xPos = 40;
+      agendaHeaders.forEach((header, i) => {
+        pdf.setFont(undefined, 'bold');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(header, xPos + 10, currentY + 20);
+        xPos += agendaColWidths[i];
+      });
+      
+      currentY += 30;
 
-      // Agendarader med tekstbryting
-      y = agendaStartY + 25;
+      // Agendapunkter med horisontale linjer
       agendaPunkter.forEach((punkt, index) => {
-        pdf.line(40, y, 40 + sum(agendaColWidths), y);
+        checkNewPage(40);
         
-        const agendapunkt = splitText(punkt.punkt || '', 230);
-        const ansvarlig = splitText(punkt.ansvarlig || '', 80);
-
-        const maxLines = Math.max(agendapunkt.length, ansvarlig.length);
-        const lineHeight = 12;
-
-        pdf.text(beregnTidspunkt(index), 45, y + 12);
-        pdf.text(`${punkt.varighet} min`, 120, y + 12);
-        pdf.text(agendapunkt, 200, y + 12);
-        pdf.text(ansvarlig, 430, y + 12);
-
-        y += Math.max(25, (maxLines * lineHeight));
+        // Horisontal linje
+        pdf.line(40, currentY, 40 + agendaTableWidth, currentY);
+        
+        pdf.setFont(undefined, 'normal');
+        pdf.text(beregnTidspunkt(index), 50, currentY + 20);
+        pdf.text(`${punkt.varighet} min`, 120, currentY + 20);
+        
+        const agendapunktLinjer = pdf.splitTextToSize(punkt.punkt || '', 230);
+        agendapunktLinjer.forEach((linje, i) => {
+          pdf.text(linje, 200, currentY + 20 + (i * 12));
+        });
+        
+        pdf.text(punkt.ansvarlig || '', 450, currentY + 20);
+        
+        currentY += Math.max(40, agendapunktLinjer.length * 12 + 20);
       });
 
       // Møteslutt
-      y += 10;
-      pdf.text(beregnSluttTid(), 45, y);
-      pdf.text('Møteslutt', 120, y);
+      checkNewPage(40);
+      pdf.text(beregnSluttTid(), 50, currentY + 20);
+      pdf.text('Møteslutt', 120, currentY + 20);
 
-        pdf.save(`${moteInfo.tema || 'moteagenda'}.pdf`);
-      } catch (error) {
-        console.error('Eksport feilet:', error);
+      pdf.save(`${moteInfo.tema || 'moteagenda'}.pdf`);
+    } catch (error) {
+      console.error('Eksport feilet:', error);
+      alert('Kunne ikke generere PDF: ' + error.message);
     }
   };
 
