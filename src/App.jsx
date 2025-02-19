@@ -589,19 +589,7 @@ function App() {
                           deltakere={deltakere}
                           agendaPunkter={agendaPunkter}
                         >
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.target.closest('.agenda-print-view').querySelector('.export-trigger').click();
-                            }}
-                            className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
-                            title="Eksporter agenda"
-                          >
-                            <FileDown size={18} />
-                            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                              Eksporter agenda
-                            </span>
-                          </button>
+                          <FileDown size={18} />
                         </AgendaPrintView>
                         <button 
                           onClick={handleLogout}
