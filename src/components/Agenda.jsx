@@ -122,13 +122,12 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                               </div>
                             </div>
 
-                            <div>
+                            <div className="p-2 border-b border-gray-200">
                               <textarea
                                 value={punkt.punkt}
                                 onChange={(e) => handleAgendaEndring(index, 'punkt', e.target.value)}
-                                className="w-full border rounded p-2 text-sm"
+                                className="w-full p-2 border rounded focus:outline-none focus:border-blue-500 agenda-punkt-input"
                                 rows="2"
-                                placeholder="Beskriv agendapunktet"
                                 disabled={disabled}
                               />
                             </div>

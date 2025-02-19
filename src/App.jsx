@@ -81,6 +81,11 @@ function App() {
 
   const lagreMote = async (fraGjennomforing = false, gjennomforingsData = null) => {
     try {
+      if (!auth.currentUser) {
+        alert('Du må være logget inn for å lagre møtet');
+        return;
+      }
+
       const moteData = {
         tema: moteInfo.tema,
         dato: moteInfo.dato,
@@ -98,25 +103,35 @@ function App() {
       };
 
       if (moteInfo.id) {
+        // Oppdater eksisterende møte
         const moteRef = doc(db, 'moter', moteInfo.id);
-        const historikkRef = collection(db, 'moter', moteInfo.id, 'historikk');
         
-        // Lagre nåværende versjon i historikk
+        // Lagre historikk først
+        const historikkRef = collection(db, 'moter', moteInfo.id, 'historikk');
         await addDoc(historikkRef, {
           ...moteData,
           tidspunkt: serverTimestamp(),
           endretAv: auth.currentUser.email
         });
 
-        // Oppdater møtet
+        // Deretter oppdater møtet
         await updateDoc(moteRef, moteData);
+        
+        setToastMessage('Møtet er lagret!');
       } else {
+        // Opprett nytt møte
         const docRef = await addDoc(collection(db, 'moter'), moteData);
         setMoteInfo(prev => ({ ...prev, id: docRef.id }));
+        setToastMessage('Nytt møte er opprettet!');
       }
 
+      // Oppdater listen over lagrede møter
+      await hentLagredeMoter();
+
+      // Vis bekreftelse
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
+
     } catch (error) {
       console.error('Feil ved lagring:', error);
       alert('Kunne ikke lagre møtet. Vennligst prøv igjen.');

@@ -47,4 +47,9 @@ body {
   .no-print {
     display: none !important;
   }
+}
+
+.agenda-punkt-input {
+  font-size: 1.5rem !important;
+  line-height: 2rem !important;
 } 
