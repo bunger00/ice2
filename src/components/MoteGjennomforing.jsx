@@ -1,9 +1,121 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Clock, ArrowLeft, Check, Calendar, Image, X, Save, Printer, FileDown, Lock, Unlock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, ArrowLeft, Check, Calendar, Image, X, Save, Printer, FileDown, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Plus } from 'lucide-react';
 import MoteReferatPrintView from './MoteReferatPrintView';
 import Toast from './Toast';
 import ConfirmDialog from './ConfirmDialog';
+
+// Legg til en ny AksjonDialog komponent
+const AksjonDialog = ({ isOpen, onClose, onSave, deltakere }) => {
+  const [aksjon, setAksjon] = useState({
+    ansvarlig: '',
+    beskrivelse: '',
+    frist: ''
+  });
+  const [visManuelInput, setVisManuelInput] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(aksjon);
+    setAksjon({ ansvarlig: '', beskrivelse: '', frist: '' });
+    setVisManuelInput(false);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 className="text-lg font-medium mb-4">Ny aksjon</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ansvarlig
+              </label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisManuelInput(!visManuelInput)}
+                    className="text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    {visManuelInput ? "Velg fra liste" : "Skriv inn manuelt"}
+                  </button>
+                </div>
+                {visManuelInput ? (
+                  <input
+                    type="text"
+                    value={aksjon.ansvarlig}
+                    onChange={(e) => setAksjon({ ...aksjon, ansvarlig: e.target.value })}
+                    className="w-full border rounded-md p-2"
+                    placeholder="Skriv inn navn"
+                    required
+                  />
+                ) : (
+                  <select
+                    value={aksjon.ansvarlig}
+                    onChange={(e) => setAksjon({ ...aksjon, ansvarlig: e.target.value })}
+                    className="w-full border rounded-md p-2"
+                    required
+                  >
+                    <option value="">Velg ansvarlig</option>
+                    {deltakere.map((deltaker, index) => (
+                      <option key={index} value={deltaker.navn}>
+                        {deltaker.navn}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Beskrivelse
+              </label>
+              <textarea
+                value={aksjon.beskrivelse}
+                onChange={(e) => setAksjon({ ...aksjon, beskrivelse: e.target.value })}
+                className="w-full border rounded-md p-2"
+                rows="3"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Frist
+              </label>
+              <input
+                type="date"
+                value={aksjon.frist}
+                onChange={(e) => setAksjon({ ...aksjon, frist: e.target.value })}
+                className="w-full border rounded-md p-2"
+                required
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+            >
+              Avbryt
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Lagre aksjon
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStatus, setDeltakere, setAgendaPunkter, lagreMote, resetMote, setVisMoteSkjema, setVisLagredeMoter }) {
   const location = useLocation();
@@ -19,20 +131,27 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
       oppmoteStatus: d.oppmoteStatus || 'none'
     }))
   );
+
+  // Legg til denne hjelpefunksjonen øverst i komponenten
+  const generateUniqueId = () => Math.random().toString(36).substring(2, 15);
+
+  // Oppdater initialiseringen av agendaStatus for å inkludere unike IDer
   const [agendaStatus, setAgendaStatus] = useState(
     agendaPunkter.map(a => ({ 
       ...a, 
+      id: a.id || generateUniqueId(),
       kommentar: a.kommentar || '', 
       startTid: a.startTid || null,
       ferdig: a.ferdig || false,
       tidBrukt: a.tidBrukt || null,
-      vedlegg: a.vedlegg || [], // Behold eksisterende vedlegg
+      vedlegg: a.vedlegg || [],
       erLast: a.erLast || false,
       notater: a.notater || '',
       beslutninger: a.beslutninger || '',
       aksjoner: a.aksjoner || []
     }))
   );
+
   const [aktivtPunkt, setAktivtPunkt] = useState(null);
   const [statusOppnadd, setStatusOppnadd] = useState(
     moteInfo.statusOppnadd || moteInfo.gjennomforingsStatus?.statusOppnadd || null
@@ -58,6 +177,9 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     status: true
   });
 
+  const [activeAksjonIndex, setActiveAksjonIndex] = useState(null);
+  const [showAksjonDialog, setShowAksjonDialog] = useState(false);
+
   // Oppdater klokken hvert sekund
   useEffect(() => {
     const timer = setInterval(() => {
@@ -65,6 +187,9 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Legg til useRef for debounce timer
+  const debounceTimer = useRef(null);
 
   const syklusDeltakerStatus = (index, statusType) => {
     const oppdaterteDeltakere = [...deltakereStatus];
@@ -83,14 +208,100 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     setDeltakere(oppdaterteDeltakere);
   };
 
-  const handleAgendaKommentar = (index, kommentar) => {
+  const handleAgendaKommentar = async (index, kommentar) => {
+    // Oppdater lokal state umiddelbart
     const oppdaterteAgendaPunkter = [...agendaStatus];
     oppdaterteAgendaPunkter[index] = {
       ...oppdaterteAgendaPunkter[index],
       kommentar: kommentar
     };
     setAgendaStatus(oppdaterteAgendaPunkter);
+    
+    // Clear existing timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    
+    // Set new timer for saving
+    debounceTimer.current = setTimeout(async () => {
+      try {
+        const gjennomforingsData = {
+          id: moteInfo.id,
+          tema: moteInfo.tema || '',
+          dato: moteInfo.dato || '',
+          startTid: moteInfo.startTid || '',
+          innkallingsDato: moteInfo.innkallingsDato || '',
+          eier: moteInfo.eier || '',
+          fasilitator: moteInfo.fasilitator || '',
+          referent: moteInfo.referent || '',
+          hensikt: moteInfo.hensikt || '',
+          mal: moteInfo.mal || '',
+          erGjennomfort: true,
+          gjennomforingsStatus: {
+            statusOppnadd: statusOppnadd || null,
+            nyDato: nyDato || null,
+            mal: moteInfo.mal || ''
+          },
+          statusInfo: {
+            fullfortePunkter: oppdaterteAgendaPunkter.filter(p => p.ferdig).length,
+            gjenstaendePunkter: oppdaterteAgendaPunkter.filter(p => !p.ferdig).length,
+            totaltAntallPunkter: oppdaterteAgendaPunkter.length
+          },
+          deltakere: deltakereStatus.map(d => ({
+            navn: d.navn || '',
+            fagFunksjon: d.fagFunksjon || '',
+            utfortStatus: d.utfortStatus || 'none',
+            oppmoteStatus: d.oppmoteStatus || 'none',
+            forberedelser: d.forberedelser || '',
+            epost: d.epost || ''
+          })),
+          agendaPunkter: oppdaterteAgendaPunkter.map(punkt => ({
+            id: punkt.id || Math.random().toString(36).substring(2, 15),
+            punkt: punkt.punkt || '',
+            ansvarlig: punkt.ansvarlig || '',
+            varighet: punkt.varighet || 15,
+            startTid: punkt.startTid || null,
+            ferdig: punkt.ferdig || false,
+            tidBrukt: punkt.tidBrukt || null,
+            kommentar: punkt.kommentar || '',  // Sikre at kommentar er inkludert
+            notater: punkt.notater || '',
+            beslutninger: punkt.beslutninger || '',
+            vedlegg: Array.isArray(punkt.vedlegg) ? punkt.vedlegg.map(v => ({
+              type: v.type || 'image',
+              data: v.data || '',
+              timestamp: v.timestamp || new Date().toISOString(),
+              navn: v.navn || 'Vedlegg',
+              id: v.id || Math.random().toString(36).substring(2, 15)
+            })) : [],
+            aksjoner: Array.isArray(punkt.aksjoner) ? punkt.aksjoner.map(a => ({
+              ansvarlig: a.ansvarlig || '',
+              beskrivelse: a.beskrivelse || '',
+              frist: a.frist || '',
+              opprettet: a.opprettet || new Date().toISOString(),
+              status: a.status || 'åpen'
+            })) : [],
+            erLast: punkt.erLast || false
+          }))
+        };
+        
+        const success = await lagreMote(true, gjennomforingsData);
+        if (!success) {
+          console.error('Kunne ikke lagre kommentar');
+        }
+      } catch (error) {
+        console.error('Feil ved lagring av kommentar:', error);
+      }
+    }, 1000);
   };
+
+  // Cleanup timer når komponenten unmountes
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, []);
 
   const startAgendaPunkt = (index) => {
     if (aktivtPunkt !== null) return; // Hvis det allerede er et aktivt punkt, ikke gjør noe
@@ -146,7 +357,9 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
           oppdaterteAgendaPunkter[index].vedlegg.push({
             type: 'image',
             data: e.target.result,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            navn: `Skjermbilde ${oppdaterteAgendaPunkter[index].vedlegg.length + 1}`,
+            id: Math.random().toString(36).substring(2, 15)
           });
           setAgendaStatus(oppdaterteAgendaPunkter);
         };
@@ -189,46 +402,68 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
 
   const handleSave = async () => {
     try {
+      if (!moteInfo.id) {
+        setShowToast(false);
+        alert('Kan ikke lagre: Møtet mangler ID');
+        return false;
+      }
+
       const oppdaterteAgendaPunkter = agendaStatus.map(punkt => ({
         punkt: punkt.punkt || '',
         ansvarlig: punkt.ansvarlig || '',
         varighet: punkt.varighet || 15,
-        kommentar: punkt.kommentar || '',
-        startTid: punkt.startTid,
+        startTid: punkt.startTid || null,
         ferdig: punkt.ferdig || false,
-        tidBrukt: punkt.tidBrukt,
-        vedlegg: Array.isArray(punkt.vedlegg) ? punkt.vedlegg : [],
-        erLast: punkt.erLast || false,
+        tidBrukt: punkt.tidBrukt || null,
+        kommentar: punkt.kommentar || '',
         notater: punkt.notater || '',
         beslutninger: punkt.beslutninger || '',
-        aksjoner: Array.isArray(punkt.aksjoner) ? punkt.aksjoner : []
+        vedlegg: (punkt.vedlegg || []).map(v => ({
+          type: v.type || 'image',
+          data: v.data || '',
+          timestamp: v.timestamp || new Date().toISOString(),
+          navn: v.navn || 'Vedlegg',
+          id: v.id || Math.random().toString(36).substring(2, 15)
+        })),
+        aksjoner: (punkt.aksjoner || []).map(a => ({
+          ansvarlig: a.ansvarlig || '',
+          beskrivelse: a.beskrivelse || '',
+          frist: a.frist || '',
+          opprettet: a.opprettet || new Date().toISOString(),
+          status: a.status || 'åpen'
+        })),
+        erLast: punkt.erLast || false
       }));
 
       const gjennomforingsData = {
         id: moteInfo.id,
-        tema: moteInfo.tema,
-        dato: moteInfo.dato,
-        startTid: moteInfo.startTid,
-        eier: moteInfo.eier,
-        referent: moteInfo.referent,
-        mal: moteInfo.mal,
+        tema: moteInfo.tema || '',
+        dato: moteInfo.dato || '',
+        startTid: moteInfo.startTid || '',
+        innkallingsDato: moteInfo.innkallingsDato || '',
+        eier: moteInfo.eier || '',
+        fasilitator: moteInfo.fasilitator || '',
+        referent: moteInfo.referent || '',
+        hensikt: moteInfo.hensikt || '',
+        mal: moteInfo.mal || '',
+        erGjennomfort: true,
         gjennomforingsStatus: {
-          statusOppnadd,
-          nyDato,
-          mal: moteInfo.mal
+          statusOppnadd: statusOppnadd || null,
+          nyDato: nyDato || null,
+          mal: moteInfo.mal || ''
         },
         statusInfo: {
-          fullfortePunkter: agendaStatus.filter(p => p.ferdig).length,
-          gjenstaendePunkter: agendaStatus.filter(p => !p.ferdig).length,
-          totaltAntallPunkter: agendaStatus.length
+          fullfortePunkter: oppdaterteAgendaPunkter.filter(p => p.ferdig).length,
+          gjenstaendePunkter: oppdaterteAgendaPunkter.filter(p => !p.ferdig).length,
+          totaltAntallPunkter: oppdaterteAgendaPunkter.length
         },
-        deltakereStatus: deltakereStatus.map(d => ({
-          navn: d.navn,
-          fagFunksjon: d.fagFunksjon,
-          utfortStatus: d.utfortStatus,
-          oppmoteStatus: d.oppmoteStatus,
-          forberedelser: d.forberedelser,
-          epost: d.epost
+        deltakere: deltakereStatus.map(d => ({
+          navn: d.navn || '',
+          fagFunksjon: d.fagFunksjon || '',
+          utfortStatus: d.utfortStatus || 'none',
+          oppmoteStatus: d.oppmoteStatus || 'none',
+          forberedelser: d.forberedelser || '',
+          epost: d.epost || ''
         })),
         agendaPunkter: oppdaterteAgendaPunkter
       };
@@ -240,8 +475,10 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
       const success = await lagreMote(true, gjennomforingsData);
       if (success) {
         setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        return true;
       }
-      return success;
+      return false;
     } catch (error) {
       console.error('Detaljert feil ved lagring:', error);
       alert(`Kunne ikke lagre møtet: ${error.message}`);
@@ -428,6 +665,38 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     }));
   };
 
+  // Legg til funksjon for å håndtere nye aksjoner
+  const handleAddAksjon = (index) => {
+    setActiveAksjonIndex(index);
+    setShowAksjonDialog(true);
+  };
+
+  const handleSaveAksjon = (nyAksjon) => {
+    const oppdaterteAgendaPunkter = [...agendaStatus];
+    if (!oppdaterteAgendaPunkter[activeAksjonIndex].aksjoner) {
+      oppdaterteAgendaPunkter[activeAksjonIndex].aksjoner = [];
+    }
+    oppdaterteAgendaPunkter[activeAksjonIndex].aksjoner.push({
+      ...nyAksjon,
+      opprettet: new Date().toISOString(),
+      status: 'åpen'
+    });
+    setAgendaStatus(oppdaterteAgendaPunkter);
+  };
+
+  const handleDeleteAksjon = (agendaIndex, aksjonIndex) => {
+    const oppdaterteAgendaPunkter = [...agendaStatus];
+    oppdaterteAgendaPunkter[agendaIndex].aksjoner.splice(aksjonIndex, 1);
+    setAgendaStatus(oppdaterteAgendaPunkter);
+  };
+
+  // Legg til rename-funksjon
+  const handleRenameVedlegg = (agendaIndex, vedleggIndex, nyttNavn) => {
+    const oppdaterteAgendaPunkter = [...agendaStatus];
+    oppdaterteAgendaPunkter[agendaIndex].vedlegg[vedleggIndex].navn = nyttNavn;
+    setAgendaStatus(oppdaterteAgendaPunkter);
+  };
+
   return (
     <div className={`min-h-screen bg-gray-100 py-8 ${isLocked ? 'opacity-75' : ''}`}>
       {showToast && (
@@ -582,123 +851,233 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
           {expandedSections.agenda && (
             <div className="mt-4">
           <div className="border rounded-lg overflow-hidden">
-            {/* Overskrifter */}
-            <div className="grid grid-cols-12 gap-4 p-4 bg-gray-50 border-b text-gray-800">
-              <div className="col-span-1 text-center font-bold">Tid planlagt</div>
-              <div className="col-span-1 text-center font-bold border-l pl-2">Tid faktisk</div>
-              <div className="col-span-5 font-bold">Agendapunkt</div>
-              <div className="col-span-3 font-bold text-center">Kommentar</div>
-              <div className="col-span-2 font-bold text-center">Handling</div>
-            </div>
-
             {/* Agenda innhold */}
             <div className="divide-y">
               {agendaStatus.map((punkt, index) => (
-                <div key={index} className="p-4">
-                  <div className="grid grid-cols-12 gap-4 items-start">
-                    {/* Planlagt tid */}
-                    <div className="col-span-1 text-center">
-                      <div className="text-lg font-medium text-gray-800">
-                        {getPlanlagtStartTid(index)}
-                      </div>
-                      <div className="text-sm text-gray-500">{punkt.varighet} min</div>
-                    </div>
+                <div
+                  key={punkt.id || index}
+                  className="bg-white rounded-xl shadow-sm overflow-hidden mb-6 transition-all duration-200 hover:shadow-md border border-gray-100"
+                >
+                  {/* Kombinert header med all informasjon */}
+                  <div className="px-4 py-4 bg-gray-100/90">
+                    <div className="flex items-center justify-between gap-4">
+                      {/* Venstre side: Tid og agendapunkt */}
+                      <div className="flex items-center gap-8 flex-1">
+                        {/* Planlagt tid */}
+                        <div className="flex flex-col items-center min-w-[100px] pl-2">
+                          <span className="text-xl font-medium text-gray-900">{getPlanlagtStartTid(index)}</span>
+                          <span className="text-sm text-gray-500">({punkt.varighet} min)</span>
+                        </div>
 
-                    {/* Faktisk tid */}
-                    <div className="col-span-1 text-center border-l pl-2">
-                      {punkt.startTid ? (
-                        <>
-                          <div className="text-lg font-medium text-gray-800">
-                            {new Date(punkt.startTid).toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' })}
+                        {/* Agendapunkt og ansvarlig */}
+                        <div className="flex-1">
+                          <h3 className="text-xl font-medium text-gray-900">{punkt.punkt}</h3>
+                          <div className="text-sm text-gray-600">
+                            Ansvarlig: {punkt.ansvarlig}
                           </div>
-                          {punkt.tidBrukt && (
-                            <div className={`text-sm ${punkt.tidBrukt > punkt.varighet ? 'text-red-500' : 'text-green-500'}`}>
-                              {punkt.tidBrukt} min
+                        </div>
+                      </div>
+
+                      {/* Høyre side: Faktisk tid og handlingsknapper */}
+                      <div className="flex items-center gap-6">
+                        {/* Faktisk tid */}
+                        {punkt.startTid && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 text-sm">Faktisk start:</span>
+                            <span className="text-lg font-medium text-gray-900">
+                              {new Date(punkt.startTid).toLocaleTimeString('no-NO', { 
+                                hour: '2-digit', 
+                                minute: '2-digit' 
+                              })}
+                            </span>
+                            {punkt.tidBrukt && (
+                              <>
+                                <span className="text-gray-500 text-sm ml-4">Faktisk varighet:</span>
+                                <span className={`text-sm font-medium ${punkt.tidBrukt > punkt.varighet ? 'text-red-500' : 'text-green-500'}`}>
+                                  {punkt.tidBrukt} min
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Handlingsknapper */}
+                        {!punkt.ferdig && (
+                          aktivtPunkt === index ? (
+                            <button
+                              onClick={() => ferdigstillAgendaPunkt(index)}
+                              disabled={isLocked}
+                              className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all duration-200 ${
+                                isLocked 
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                  : 'bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-sm'
+                              }`}
+                            >
+                              <Check size={18} />
+                              <span className="font-medium">Ferdig</span>
+                            </button>
+                          ) : !punkt.startTid && aktivtPunkt === null && (
+                            <button
+                              onClick={() => startAgendaPunkt(index)}
+                              disabled={isLocked}
+                              className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all duration-200 ${
+                                isLocked 
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                  : 'bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-sm'
+                              }`}
+                            >
+                              <Clock size={18} />
+                              <span className="font-medium">Start</span>
+                            </button>
+                          )
+                        )}
+                        {punkt.ferdig && (
+                          <div className="flex items-center gap-2 text-green-600 bg-green-50 px-5 py-2.5 rounded-full">
+                            <Check size={18} />
+                            <span className="font-medium">Fullført</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Hovedinnhold */}
+                  <div className="p-8 bg-white">
+                    {/* Innhold i to kolonner med lik høyde */}
+                    <div className="grid grid-cols-2 gap-12">
+                      {/* Venstre kolonne: Kommentarer og vedlegg */}
+                      <div className="flex flex-col">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Kommentar
+                        </label>
+                        <div className="relative flex-1">
+                          <textarea
+                            placeholder="Skriv kommentar... (Ctrl+V for å lime inn skjermbilde)"
+                            value={punkt.kommentar}
+                            onChange={(e) => handleAgendaKommentar(index, e.target.value)}
+                            onPaste={(e) => !isLocked && handlePasteImage(index, e)}
+                            disabled={isLocked}
+                            className={`w-full border border-gray-200 rounded-xl p-4 min-h-[120px] text-gray-700 placeholder-gray-400 ${
+                              isLocked ? 'bg-gray-50' : 'focus:ring-2 focus:ring-blue-100 focus:border-blue-300'
+                            }`}
+                            rows="3"
+                          />
+                          <div className="absolute right-4 bottom-4 text-gray-400">
+                            <Image size={16} />
+                          </div>
+                        </div>
+
+                        {/* Vedlegg */}
+                        {punkt.vedlegg.length > 0 && (
+                          <div className="mt-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Vedlegg
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              {punkt.vedlegg.map((vedlegg, vedleggIndex) => (
+                                <div
+                                  key={vedlegg.id}
+                                  className="relative group bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-all"
+                                >
+                                  <button
+                                    onClick={() => visVedlegg(vedlegg)}
+                                    className="w-full flex flex-col items-start gap-1 px-3 py-2"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <Image size={14} className="text-gray-400" />
+                                      {!isLocked ? (
+                                        <input
+                                          type="text"
+                                          value={vedlegg.navn}
+                                          onChange={(e) => handleRenameVedlegg(index, vedleggIndex, e.target.value)}
+                                          className="text-sm text-gray-700 border-none bg-transparent hover:bg-gray-50 focus:ring-1 focus:ring-blue-100 rounded px-1 py-0.5 w-24"
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      ) : (
+                                        <span className="text-sm text-gray-600">{vedlegg.navn}</span>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-gray-400">
+                                      {new Date(vedlegg.timestamp).toLocaleString('no-NO', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </div>
+                                  </button>
+                                  {!isLocked && (
+                                    <button
+                                      onClick={() => slettVedlegg(index, vedleggIndex)}
+                                      className="absolute right-1 top-1 text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-50"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Høyre kolonne: Aksjoner */}
+                      <div className="flex flex-col">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Aksjoner
+                          </label>
+                          {!isLocked && (
+                            <button
+                              onClick={() => handleAddAksjon(index)}
+                              className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200"
+                            >
+                              <Plus size={16} />
+                              <span className="text-sm font-medium">Legg til aksjon</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="space-y-4">
+                          {punkt.aksjoner?.length > 0 ? (
+                            punkt.aksjoner.map((aksjon, aksjonIndex) => (
+                              <div
+                                key={aksjonIndex}
+                                className="bg-white border border-gray-200 rounded-xl p-3 hover:shadow-sm transition-all"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-start gap-2 mb-1">
+                                      <AlertCircle size={14} className="text-yellow-500 mt-1 flex-shrink-0" />
+                                      <div className="space-y-0.5">
+                                        <p className="font-medium text-gray-900 text-sm">{aksjon.beskrivelse}</p>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                          <span>{aksjon.ansvarlig}</span>
+                                          <span>•</span>
+                                          <span>Frist: {new Date(aksjon.frist).toLocaleDateString()}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {!isLocked && (
+                                    <button
+                                      onClick={() => handleDeleteAksjon(index, aksjonIndex)}
+                                      className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-50"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-center text-gray-500 text-sm">
+                              Ingen aksjoner lagt til
                             </div>
                           )}
-                        </>
-                      ) : (
-                        <div className="text-sm text-gray-400">Ikke startet</div>
-                      )}
-                    </div>
-
-                    {/* Agenda innhold */}
-                    <div className="col-span-5">
-                      <div className="font-medium">{punkt.punkt}</div>
-                      <div className="text-sm text-gray-500">
-                        Ansvarlig: {punkt.ansvarlig}
-                      </div>
-                    </div>
-
-                    {/* Kommentar */}
-                    <div className="col-span-3">
-                      <div className="relative">
-                        <textarea
-                          placeholder="Kommentar... (Ctrl+V for å lime inn skjermbilde)"
-                          value={punkt.kommentar}
-                          onChange={(e) => handleAgendaKommentar(index, e.target.value)}
-                          onPaste={(e) => !isLocked && handlePasteImage(index, e)}
-                          disabled={isLocked}
-                          className={`w-full border rounded p-2 text-sm ${isLocked ? 'bg-gray-50' : ''}`}
-                          rows="2"
-                        />
-                        <div className="absolute right-2 bottom-2 text-gray-400">
-                          <Image size={16} />
                         </div>
                       </div>
-                      {punkt.vedlegg.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {punkt.vedlegg.map((vedlegg, vedleggIndex) => (
-                            <div
-                              key={vedleggIndex}
-                              className="relative group"
-                            >
-                              <button
-                                onClick={() => visVedlegg(vedlegg)}
-                                className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 text-sm text-gray-600"
-                              >
-                                <Image size={14} />
-                                <span>Skjermbilde {vedleggIndex + 1}</span>
-                              </button>
-                              <button
-                                onClick={() => slettVedlegg(index, vedleggIndex)}
-                                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Handling (Start/Ferdig knapp) */}
-                    <div className="col-span-2 flex justify-center items-start">
-                      {!punkt.ferdig && (
-                        aktivtPunkt === index ? (
-                          <button
-                            onClick={() => ferdigstillAgendaPunkt(index)}
-                            disabled={isLocked}
-                            className={`flex items-center gap-1 px-3 py-1 ${
-                              isLocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'
-                            } text-white text-sm rounded`}
-                          >
-                            <Check size={14} />
-                            Ferdig
-                          </button>
-                        ) : !punkt.startTid && aktivtPunkt === null && (
-                          <button
-                            onClick={() => startAgendaPunkt(index)}
-                            disabled={isLocked}
-                            className={`flex items-center gap-1 px-3 py-1 ${
-                              isLocked ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'
-                            } text-white text-sm rounded`}
-                          >
-                            <Clock size={14} />
-                            Start
-                          </button>
-                        )
-                      )}
                     </div>
                   </div>
                 </div>
@@ -733,40 +1112,42 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                 <button
                   onClick={() => !isLocked && setStatusOppnadd('oppnadd')}
                   disabled={isLocked}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
+                  className={`flex items-center gap-2 px-6 py-3 rounded-md border transition-colors ${
                     isLocked ? 'opacity-50 cursor-not-allowed' : ''
                   } ${
-                    statusOppnadd === 'oppnadd' ? 'bg-green-500 text-white border-green-500' : 'border-gray-300 hover:border-green-500'
+                    statusOppnadd === 'oppnadd' 
+                      ? 'bg-green-500 text-white border-green-500' 
+                      : 'bg-white border-gray-300 hover:border-green-500'
                   }`}
                 >
-                  <Check size={16} />
                   Oppnådd
                 </button>
                 <button
                   onClick={() => !isLocked && setStatusOppnadd('ikke_oppnadd')}
                   disabled={isLocked}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
+                  className={`flex items-center gap-2 px-6 py-3 rounded-md border transition-colors ${
                     isLocked ? 'opacity-50 cursor-not-allowed' : ''
                   } ${
-                        statusOppnadd === 'ikke_oppnadd' 
-                          ? 'bg-red-500 text-white border-red-500' 
-                          : 'border-gray-300 hover:border-red-500'
+                    statusOppnadd === 'ikke_oppnadd' 
+                      ? 'bg-red-500 text-white border-red-500' 
+                      : 'bg-white border-gray-300 hover:border-red-500'
                   }`}
                 >
-                  <Calendar size={16} />
                   Ikke oppnådd
                 </button>
               </div>
 
               {statusOppnadd === 'ikke_oppnadd' && (
-                <div className="flex items-center gap-2 ml-4">
-                  <span className="text-sm text-gray-600">Velg ny dato:</span>
+                <div className="mt-4 flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700">Ny dato:</span>
                   <input
                     type="date"
                     value={nyDato}
                     onChange={(e) => setNyDato(e.target.value)}
                     disabled={isLocked}
-                    className={`border rounded-md p-2 text-sm ${isLocked ? 'bg-gray-50' : ''}`}
+                    className={`border rounded-md p-2 ${
+                      isLocked ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
+                    }`}
                     min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
@@ -789,9 +1170,17 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
             </button>
           </div>
         )}
+
+        {/* Legg til AksjonDialog */}
+        <AksjonDialog
+          isOpen={showAksjonDialog}
+          onClose={() => setShowAksjonDialog(false)}
+          onSave={handleSaveAksjon}
+          deltakere={deltakereStatus}
+        />
       </div>
     </div>
   );
 }
 
-export default MoteGjennomforing; 
+export default MoteGjennomforing;

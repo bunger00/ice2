@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Plus, X, GripVertical } from 'lucide-react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { format, addMinutes, parse } from 'date-fns';
+import useAutoSave from '../hooks/useAutoSave';
 
-function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled }) {
+function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled, moteId }) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [setHarEndringer, setSisteEndring] = useAutoSave(moteId, agendaPunkter, 'agenda');
 
   useEffect(() => {
     // Oppdater tidspunkter når startTid endres eller når komponenten lastes
@@ -19,6 +21,8 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
     const oppdaterteAgendaPunkter = [...agendaPunkter];
     oppdaterteAgendaPunkter[index][felt] = verdi;
     setAgendaPunkter(oppdaterteAgendaPunkter);
+    setHarEndringer(true);
+    setSisteEndring(new Date());
   };
 
   const beregnTidspunkt = (index) => {
@@ -77,12 +81,12 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
 
       {isExpanded && (
         <div className="border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[40px_1fr_6fr_3fr_40px] gap-4 p-4 bg-gray-50 border-b text-gray-800">
-            <div></div> {/* Tom kolonne for gripehåndtak */}
-            <div className="text-center font-bold">Tid</div>
-            <div className="font-bold">Agendapunkt</div>
-            <div className="font-bold">Ansvarlig</div>
-            <div className="font-bold text-center">Slett</div>
+          <div className="hidden md:grid md:grid-cols-[40px_1fr_6fr_3fr_40px] gap-4 font-medium text-gray-700 p-2">
+            <div></div>
+            <div className="text-center">Tid</div>
+            <div>Agendapunkt</div>
+            <div>Ansvarlig</div>
+            <div></div>
           </div>
 
           <Droppable droppableId="agenda">
@@ -96,17 +100,15 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className="p-4"
+                          className="bg-white rounded-lg shadow-sm md:shadow-none"
                         >
-                          <div className="grid grid-cols-[40px_1fr_6fr_3fr_40px] gap-4 items-center">
+                          <div className="hidden md:grid md:grid-cols-[40px_1fr_6fr_3fr_40px] gap-4 items-center p-4">
                             <div {...provided.dragHandleProps} className="flex justify-center text-gray-400 hover:text-gray-600">
                               <GripVertical size={20} />
                             </div>
-
+                            
                             <div className="flex flex-col items-center">
-                              <div className="text-lg font-medium text-gray-800">
-                                {tid}
-                              </div>
+                              <div className="text-lg font-medium text-gray-800">{tid}</div>
                               <div className="flex flex-col items-center gap-1">
                                 <input
                                   type="range"
@@ -122,12 +124,18 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                               </div>
                             </div>
 
-                            <div className="p-2 border-b border-gray-200">
+                            <div className="flex items-start">
                               <textarea
                                 value={punkt.punkt}
                                 onChange={(e) => handleAgendaEndring(index, 'punkt', e.target.value)}
-                                className="w-full p-2 border rounded focus:outline-none focus:border-blue-500 agenda-punkt-input"
-                                rows="2"
+                                className="w-full p-2 border rounded resize-none overflow-hidden text-lg font-medium"
+                                style={{ fontSize: '28px' }}  // Legg til direkte style for fontstørrelse
+                                placeholder="Beskriv agendapunktet"
+                                rows="1"
+                                onInput={e => {
+                                  e.target.style.height = 'auto';
+                                  e.target.style.height = e.target.scrollHeight + 'px';
+                                }}
                                 disabled={disabled}
                               />
                             </div>
@@ -151,6 +159,57 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                               </button>
                             </div>
                           </div>
+
+                          <div className="md:hidden p-4 space-y-3">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <div {...provided.dragHandleProps} className="text-gray-400">
+                                  <GripVertical size={20} />
+                                </div>
+                                <div className="text-lg font-medium text-gray-800">{tid}</div>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const nyeAgendaPunkter = agendaPunkter.filter((_, i) => i !== index);
+                                  setAgendaPunkter(nyeAgendaPunkter);
+                                }}
+                                className="text-red-500"
+                                disabled={disabled}
+                              >
+                                <X size={20} />
+                              </button>
+                            </div>
+
+                            <div className="space-y-3">
+                              <textarea
+                                value={punkt.punkt}
+                                onChange={(e) => handleAgendaEndring(index, 'punkt', e.target.value)}
+                                className="w-full p-3 border rounded-lg focus:outline-none focus:border-blue-500 text-base"
+                                rows="3"
+                                placeholder="Beskriv agendapunktet"
+                                disabled={disabled}
+                              />
+
+                              <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
+                                <span className="text-sm text-gray-600">Varighet:</span>
+                                <input
+                                  type="range"
+                                  min="5"
+                                  max="60"
+                                  step="5"
+                                  value={punkt.varighet}
+                                  onChange={(e) => handleAgendaEndring(index, 'varighet', parseInt(e.target.value))}
+                                  disabled={disabled}
+                                  className="flex-1"
+                                />
+                                <span className="text-sm font-medium">{punkt.varighet} min</span>
+                              </div>
+
+                              <div className="bg-gray-50 p-2 rounded-lg">
+                                {renderAnsvarligInput(index, punkt)}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </Draggable>
@@ -161,7 +220,6 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
             )}
           </Droppable>
 
-          {/* Møteslutt og Legg til punkt */}
           <div className="p-4 space-y-4">
             {!disabled && (
               <button

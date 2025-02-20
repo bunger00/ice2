@@ -34,10 +34,10 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
   };
 
   const handleExport = async () => {
-    try {
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'pt',
+      try {
+        const pdf = new jsPDF({
+          orientation: 'portrait',
+          unit: 'pt',
         format: 'a4',
         compress: true  // Aktiver komprimering
       });
@@ -416,10 +416,10 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
       });
 
       // Lagre den optimaliserte PDF-en
-      pdf.save(`${moteInfo.tema || 'moteagenda'}.pdf`);
+        pdf.save(`${moteInfo.tema || 'moteagenda'}.pdf`);
 
-    } catch (error) {
-      console.error('Eksport feilet:', error);
+      } catch (error) {
+        console.error('Eksport feilet:', error);
       alert('Kunne ikke generere PDF: ' + error.message);
     }
   };

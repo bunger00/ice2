@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence, collection, getDocs } from 'firebase/firestore';
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 // Din Firebase-konfigurasjon
 const firebaseConfig = {
@@ -28,34 +28,10 @@ enableIndexedDbPersistence(db)
     }
   });
 
-// Test Firestore connection
-async function testFirestore() {
-  try {
-    console.log('Testing Firestore tilkobling...');
-    const testCollection = collection(db, 'moter');
-    const snapshot = await getDocs(testCollection);
-    console.log('Firestore tilkobling vellykket. Fant', snapshot.size, 'dokumenter');
-    return true;
-  } catch (error) {
-    console.error('Firestore tilkoblingsfeil:', error);
-    return false;
-  }
-}
-
-// Test connection immediately
-testFirestore().then(success => {
-  if (success) {
-    console.log('Firestore er klar til bruk');
-  } else {
-    console.log('Kunne ikke koble til Firestore');
-  }
-});
-
 // Test auth state
 onAuthStateChanged(auth, (user) => {
   if (user) {
     console.log('Bruker pålogget:', user.uid);
-    console.log('Bruker email:', user.email);
   } else {
     console.log('Ingen bruker er pålogget');
   }

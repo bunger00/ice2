@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Plus, X, Check } from 'lucide-react';
+import useAutoSave from '../hooks/useAutoSave';
 
-function Deltakere({ deltakere, setDeltakere, disabled }) {
+function Deltakere({ deltakere, setDeltakere, disabled, moteId }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [epostListe, setEpostListe] = useState('');
+  const [setHarEndringer, setSisteEndring] = useAutoSave(moteId, deltakere, 'deltakere');
 
   const fagFunksjoner = [
-    'BH', 'PGL', 'ARK', 'RIB', 'RIV', 'RIE', 'RIVA', 
-    'LARK', 'RIBr', 'RIAKU', 'RIBy', 'RIM', 'RIG'
+    { kode: 'ARK', navn: 'ARK - Arkitekt' },
+    { kode: 'RIB', navn: 'RIB - Rådgivende Ingeniør Bygg' },
+    { kode: 'RIV', navn: 'RIV - Rådgivende Ingeniør VVS' },
+    { kode: 'RIE', navn: 'RIE - Rådgivende Ingeniør Elektro' },
+    { kode: 'RIVA', navn: 'RIVA - Rådgivende Ingeniør VA' },
+    { kode: 'LARK', navn: 'LARK - Landskapsarkitekt' },
+    { kode: 'RIBr', navn: 'RIBr - Rådgivende Ingeniør Brann' },
+    // ... legg til flere funksjoner etter behov
   ];
 
   useEffect(() => {
@@ -22,9 +30,11 @@ function Deltakere({ deltakere, setDeltakere, disabled }) {
   }, []);
 
   const handleDeltakerEndring = (index, felt, verdi) => {
-    const oppdaterteDeltakere = [...deltakere];
-    oppdaterteDeltakere[index][felt] = verdi;
-    setDeltakere(oppdaterteDeltakere);
+    const nyeDeltakere = [...deltakere];
+    nyeDeltakere[index][felt] = verdi;
+    setDeltakere(nyeDeltakere);
+    setHarEndringer(true);
+    setSisteEndring(new Date());
   };
 
   const handleEpostListeEndring = (verdi) => {
@@ -117,149 +127,174 @@ function Deltakere({ deltakere, setDeltakere, disabled }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm mb-4 p-4">
+    <div className="bg-white rounded-lg shadow-sm">
       <div 
-        className="flex items-center justify-between cursor-pointer"
+        className="flex items-center justify-between p-4 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <h2 className="text-xl font-semibold">Deltakere</h2>
-        {isExpanded ? <ChevronUp /> : <ChevronDown />}
+        <h2 className="text-xl font-medium">Deltakere</h2>
+        <button className="text-gray-500 hover:text-gray-700">
+          {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+        </button>
       </div>
 
       {isExpanded && (
-        <div className="mt-4">
-          {/* Epostliste input */}
-          <div className="mb-4">
-            <textarea
-              value={epostListe}
-              onChange={(e) => handleEpostListeEndring(e.target.value)}
-              className="w-full border rounded p-2 text-sm"
-              placeholder="Lim inn e-postadresser (kommaseparert eller én per linje)"
-              rows="1"
-              disabled={disabled}
-            />
+        <div className="border-t">
+          {/* Desktop header - justerte kolonnebredder */}
+          <div className="hidden md:grid md:grid-cols-[120px_180px_1fr_1fr_40px] gap-4 p-4 bg-gray-50 border-b">
+            <div className="font-medium text-gray-700">Funksjon</div>
+            <div className="font-medium text-gray-700">Navn</div>
+            <div className="font-medium text-gray-700">E-post</div>
+            <div className="font-medium text-gray-700">Forberedelser</div>
+            <div></div>
           </div>
 
-          <div className="grid grid-cols-12 gap-4 mb-2 font-medium text-sm text-gray-700">
-            <div className="col-span-1">Funksjon</div>
-            <div className="col-span-3">Navn</div>
-            <div className="col-span-3">E-post</div>
-            <div className="col-span-4">Forberedelser</div>
-            <div className="col-span-1"></div>
-          </div>
-
-          <div className="border rounded-lg overflow-hidden">
-            <div className="divide-y">
-              {deltakere.map((deltaker, index) => (
-                <div key={index} className="grid grid-cols-12 gap-4 p-4 items-center">
-                  <div className="col-span-1">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={deltaker.fagFunksjon}
-                        onChange={(e) => handleDeltakerEndring(index, 'fagFunksjon', e.target.value)}
-                        onFocus={(e) => e.target.setAttribute('list', 'funksjoner')}
-                        onBlur={(e) => e.target.removeAttribute('list')}
-                        className="w-full border rounded p-2 bg-white cursor-pointer focus:border-blue-500 focus:ring-blue-500"
-                        placeholder="Velg eller skriv funksjon"
-                        disabled={disabled}
-                      />
-                      <datalist id="funksjoner">
-                        <option value="BH">BH - Byggherre</option>
-                        <option value="PGL">PGL - Prosjekteringsleder</option>
-                        <option value="ARK">ARK - Arkitekt</option>
-                        <option value="RIB">RIB - Rådgivende Ingeniør Bygg</option>
-                        <option value="RIV">RIV - Rådgivende Ingeniør VVS</option>
-                        <option value="RIE">RIE - Rådgivende Ingeniør Elektro</option>
-                        <option value="RIVA">RIVA - Rådgivende Ingeniør VA</option>
-                        <option value="LARK">LARK - Landskapsarkitekt</option>
-                        <option value="RIBr">RIBr - Rådgivende Ingeniør Brann</option>
-                        <option value="RIAKU">RIAKU - Rådgivende Ingeniør Akustikk</option>
-                        <option value="RIBy">RIBy - Rådgivende Ingeniør Bygningsfysikk</option>
-                        <option value="RIM">RIM - Rådgivende Ingeniør Miljø</option>
-                        <option value="RIG">RIG - Rådgivende Ingeniør Geoteknikk</option>
-                        <option value="ENT">ENT - Entreprenør</option>
-                        <option value="UE">UE - Underentreprenør</option>
-                        <option value="BL">BL - Byggeleder</option>
-                        <option value="PL">PL - Prosjektleder</option>
-                        <option value="HMS">HMS - HMS-ansvarlig</option>
-                        <option value="KPR">KPR - Kvalitetsansvarlig</option>
-                        <option value="BAS">BAS - Bas</option>
-                      </datalist>
-                      <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                        <ChevronDown size={16} className="text-gray-400" />
-                      </div>
-                    </div>
+          <div className="divide-y divide-gray-200">
+            {deltakere.map((deltaker, index) => (
+              <div key={index} className="group">
+                {/* Desktop layout - justerte kolonnebredder */}
+                <div className="hidden md:grid md:grid-cols-[120px_180px_1fr_1fr_40px] gap-4 p-4">
+                  <div className="flex items-start">
+                    <input
+                      type="text"
+                      value={deltaker.fagFunksjon}
+                      onChange={(e) => handleDeltakerEndring(index, 'fagFunksjon', e.target.value)}
+                      className="w-full p-2 border rounded"
+                      placeholder="Funksjon"
+                      disabled={disabled}
+                    />
                   </div>
-                  <div className="col-span-3">
+                  <div className="flex items-start">
                     <input
                       type="text"
                       value={deltaker.navn}
                       onChange={(e) => handleDeltakerEndring(index, 'navn', e.target.value)}
-                      className="w-full border rounded p-2"
+                      className="w-full p-2 border rounded"
                       placeholder="Navn"
                       disabled={disabled}
                     />
                   </div>
-                  <div className="col-span-3">
+                  <div className="flex items-start">
                     <input
                       type="email"
                       value={deltaker.epost}
                       onChange={(e) => handleDeltakerEndring(index, 'epost', e.target.value)}
-                      onPaste={handlePaste}
-                      className="w-full border rounded p-2"
+                      className="w-full p-2 border rounded"
                       placeholder="E-post"
                       disabled={disabled}
                     />
                   </div>
-                  <div className="col-span-4">
+                  <div className="flex items-start">
                     <textarea
                       value={deltaker.forberedelser}
-                      onChange={(e) => {
-                        // Reset høyde først
-                        e.target.style.height = '38px';  // Basis høyde
-                        
-                        // Sett ny høyde basert på innhold
-                        const scrollHeight = e.target.scrollHeight;
-                        const newHeight = Math.min(Math.max(38, scrollHeight), 76);  // Min 38px, max 76px
-                        e.target.style.height = newHeight + 'px';
-                        
-                        // Oppdater verdien
-                        handleDeltakerEndring(index, 'forberedelser', e.target.value);
-                      }}
-                      className="w-full border rounded p-2 resize-none overflow-hidden"
+                      onChange={(e) => handleDeltakerEndring(index, 'forberedelser', e.target.value)}
+                      className="w-full p-2 border rounded resize-none overflow-hidden"
                       placeholder="Hva må forberedes?"
-                      disabled={disabled}
                       rows="1"
-                      style={{
-                        height: '38px',  // Start med én linje
-                        minHeight: '38px',
-                        maxHeight: '76px'
+                      onInput={e => {
+                        e.target.style.height = 'auto';
+                        e.target.style.height = e.target.scrollHeight + 'px';
                       }}
+                      disabled={disabled}
                     />
                   </div>
-                  <div className="col-span-1 flex justify-end">
+                  <button
+                    onClick={() => fjernDeltaker(index)}
+                    className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                    disabled={disabled}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Mobil layout */}
+                <div className="md:hidden p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 space-y-3">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Funksjon
+                        </label>
+                        <input
+                          type="text"
+                          value={deltaker.fagFunksjon}
+                          onChange={(e) => handleDeltakerEndring(index, 'fagFunksjon', e.target.value)}
+                          className="w-full p-3 border rounded-lg"
+                          placeholder="Funksjon"
+                          disabled={disabled}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Navn
+                        </label>
+                        <input
+                          type="text"
+                          value={deltaker.navn}
+                          onChange={(e) => handleDeltakerEndring(index, 'navn', e.target.value)}
+                          className="w-full p-3 border rounded-lg text-base"
+                          placeholder="Navn"
+                          disabled={disabled}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          E-post
+                        </label>
+                        <input
+                          type="email"
+                          value={deltaker.epost}
+                          onChange={(e) => handleDeltakerEndring(index, 'epost', e.target.value)}
+                          className="w-full p-3 border rounded-lg text-base"
+                          placeholder="E-post"
+                          disabled={disabled}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Forberedelser
+                        </label>
+                        <textarea
+                          value={deltaker.forberedelser}
+                          onChange={(e) => handleDeltakerEndring(index, 'forberedelser', e.target.value)}
+                          className="w-full p-3 border rounded-lg resize-none overflow-hidden"
+                          placeholder="Hva må forberedes?"
+                          rows="1"
+                          onInput={e => {
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          disabled={disabled}
+                        />
+                      </div>
+                    </div>
                     <button
                       onClick={() => fjernDeltaker(index)}
-                      className="text-red-500 hover:text-red-700"
+                      className="text-red-500 p-2"
                       disabled={disabled}
                     >
                       <X size={20} />
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
 
-          <button
-            onClick={handleAddRow}
-            className="mt-4 flex items-center gap-2 px-4 py-2 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600 transition-colors"
-            disabled={disabled}
-          >
-            <Plus size={16} />
-            Legg til deltaker
-          </button>
+          {!disabled && (
+            <div className="p-4 border-t">
+              <button
+                onClick={handleAddRow}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors w-full md:w-auto justify-center"
+              >
+                <Plus size={16} />
+                Legg til deltaker
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

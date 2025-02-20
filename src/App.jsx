@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
-import { Save, PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut, Share } from 'lucide-react';
+import { PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut, Share, Save } from 'lucide-react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import MoteInformasjon from './components/MoteInformasjon';
 import Deltakere from './components/Deltakere';
@@ -60,7 +60,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const [visMoteSkjema, setVisMoteSkjema] = useState(false);
+  const [visMoteSkjema, setVisMoteSkjema] = useState(true);
 
   const [showToast, setShowToast] = useState(false);
 
@@ -68,6 +68,12 @@ function App() {
   const [sisteEndring, setSisteEndring] = useState(null);
 
   const [toastMessage, setToastMessage] = useState('');
+
+  const [expandedSections, setExpandedSections] = useState({
+    moteInfo: true,
+    deltakere: true,
+    agenda: true
+  });
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
@@ -79,62 +85,141 @@ function App() {
     handleAgendaChange(items);
   };
 
-  const lagreMote = async (fraGjennomforing = false, gjennomforingsData = null) => {
+  const lagreMote = async (erGjennomforing = false, gjennomforingsData = null) => {
     try {
-      if (!auth.currentUser) {
-        alert('Du må være logget inn for å lagre møtet');
-        return;
+      if (!moteInfo.id) {
+        console.error('Kan ikke lagre: Møtet mangler ID');
+        return false;
       }
 
-      const moteData = {
-        tema: moteInfo.tema,
-        dato: moteInfo.dato,
-        startTid: moteInfo.startTid,
-        innkallingsDato: moteInfo.innkallingsDato,
-        eier: moteInfo.eier,
-        fasilitator: moteInfo.fasilitator,
-        referent: moteInfo.referent,
-        hensikt: moteInfo.hensikt,
-        mal: moteInfo.mal,
-        deltakere,
-        agendaPunkter,
-        sistOppdatert: serverTimestamp(),
-        userId: auth.currentUser.uid
-      };
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      
+      let oppdatertData = {};
+      
+      if (erGjennomforing && gjennomforingsData) {
+        // Konverter vedlegg til gyldig Firestore-format
+        const konverterVedlegg = (vedlegg) => {
+          if (!vedlegg || typeof vedlegg !== 'object') return null;
+          return {
+            type: String(vedlegg.type || 'image'),
+            data: String(vedlegg.data || ''),
+            timestamp: String(vedlegg.timestamp || new Date().toISOString()),
+            navn: String(vedlegg.navn || 'Vedlegg'),
+            id: String(vedlegg.id || Math.random().toString(36).substring(2, 15))
+          };
+        };
 
-      if (moteInfo.id) {
-        // Oppdater eksisterende møte
-        const moteRef = doc(db, 'moter', moteInfo.id);
-        
-        // Lagre historikk først
-        const historikkRef = collection(db, 'moter', moteInfo.id, 'historikk');
-        await addDoc(historikkRef, {
-          ...moteData,
-          tidspunkt: serverTimestamp(),
-          endretAv: auth.currentUser.email
-        });
+        // Konverter aksjoner til gyldig Firestore-format
+        const konverterAksjon = (aksjon) => {
+          if (!aksjon || typeof aksjon !== 'object') return null;
+          return {
+            ansvarlig: String(aksjon.ansvarlig || ''),
+            beskrivelse: String(aksjon.beskrivelse || ''),
+            frist: String(aksjon.frist || ''),
+            opprettet: String(aksjon.opprettet || new Date().toISOString()),
+            status: String(aksjon.status || 'åpen')
+          };
+        };
 
-        // Deretter oppdater møtet
-        await updateDoc(moteRef, moteData);
-        
-        setToastMessage('Møtet er lagret!');
+        oppdatertData = {
+          id: String(gjennomforingsData.id || ''),
+          tema: String(gjennomforingsData.tema || ''),
+          dato: String(gjennomforingsData.dato || ''),
+          startTid: String(gjennomforingsData.startTid || ''),
+          innkallingsDato: String(gjennomforingsData.innkallingsDato || ''),
+          eier: String(gjennomforingsData.eier || ''),
+          fasilitator: String(gjennomforingsData.fasilitator || ''),
+          referent: String(gjennomforingsData.referent || ''),
+          hensikt: String(gjennomforingsData.hensikt || ''),
+          mal: String(gjennomforingsData.mal || ''),
+          erGjennomfort: true,
+          gjennomforingsStatus: gjennomforingsData.gjennomforingsStatus ? {
+            statusOppnadd: String(gjennomforingsData.gjennomforingsStatus.statusOppnadd || ''),
+            nyDato: String(gjennomforingsData.gjennomforingsStatus.nyDato || ''),
+            mal: String(gjennomforingsData.gjennomforingsStatus.mal || '')
+          } : null,
+          statusInfo: {
+            fullfortePunkter: Number(gjennomforingsData.statusInfo?.fullfortePunkter || 0),
+            gjenstaendePunkter: Number(gjennomforingsData.statusInfo?.gjenstaendePunkter || 0),
+            totaltAntallPunkter: Number(gjennomforingsData.statusInfo?.totaltAntallPunkter || 0)
+          },
+          deltakere: Array.isArray(gjennomforingsData.deltakere) ? gjennomforingsData.deltakere.map(d => ({
+            navn: String(d.navn || ''),
+            fagFunksjon: String(d.fagFunksjon || ''),
+            utfortStatus: String(d.utfortStatus || 'none'),
+            oppmoteStatus: String(d.oppmoteStatus || 'none'),
+            forberedelser: String(d.forberedelser || ''),
+            epost: String(d.epost || '')
+          })) : [],
+          agendaPunkter: Array.isArray(gjennomforingsData.agendaPunkter) ? gjennomforingsData.agendaPunkter.map(punkt => {
+            if (!punkt || typeof punkt !== 'object') return null;
+            return {
+              id: String(punkt.id || Math.random().toString(36).substring(2, 15)),
+              punkt: String(punkt.punkt || ''),
+              ansvarlig: String(punkt.ansvarlig || ''),
+              varighet: Number(punkt.varighet || 15),
+              startTid: punkt.startTid ? String(punkt.startTid) : null,
+              ferdig: Boolean(punkt.ferdig),
+              tidBrukt: punkt.tidBrukt ? Number(punkt.tidBrukt) : null,
+              kommentar: String(punkt.kommentar || ''),
+              notater: String(punkt.notater || ''),
+              beslutninger: String(punkt.beslutninger || ''),
+              vedlegg: Array.isArray(punkt.vedlegg) 
+                ? punkt.vedlegg.map(konverterVedlegg).filter(v => v !== null)
+                : [],
+              aksjoner: Array.isArray(punkt.aksjoner)
+                ? punkt.aksjoner.map(konverterAksjon).filter(a => a !== null)
+                : [],
+              erLast: Boolean(punkt.erLast)
+            };
+          }).filter(punkt => punkt !== null) : []
+        };
       } else {
-        // Opprett nytt møte
-        const docRef = await addDoc(collection(db, 'moter'), moteData);
-        setMoteInfo(prev => ({ ...prev, id: docRef.id }));
-        setToastMessage('Nytt møte er opprettet!');
+        // Vanlig lagring av møte
+        oppdatertData = {
+          tema: String(moteInfo.tema || ''),
+          dato: String(moteInfo.dato || ''),
+          startTid: String(moteInfo.startTid || ''),
+          innkallingsDato: String(moteInfo.innkallingsDato || ''),
+          eier: String(moteInfo.eier || ''),
+          fasilitator: String(moteInfo.fasilitator || ''),
+          referent: String(moteInfo.referent || ''),
+          hensikt: String(moteInfo.hensikt || ''),
+          mal: String(moteInfo.mal || ''),
+          agendaPunkter: Array.isArray(agendaPunkter) ? agendaPunkter.map(punkt => ({
+            id: String(punkt.id || Math.random().toString(36).substring(2, 15)),
+            punkt: String(punkt.punkt || ''),
+            ansvarlig: String(punkt.ansvarlig || ''),
+            varighet: Number(punkt.varighet || 15),
+            kommentar: String(punkt.kommentar || ''),
+            vedlegg: [],
+            aksjoner: []
+          })) : [],
+          deltakere: Array.isArray(deltakere) ? deltakere.map(d => ({
+            fagFunksjon: String(d.fagFunksjon || ''),
+            navn: String(d.navn || ''),
+            epost: String(d.epost || ''),
+            forberedelser: String(d.forberedelser || ''),
+            utfortStatus: String(d.utfortStatus || 'none'),
+            oppmoteStatus: String(d.oppmoteStatus || 'none')
+          })) : [],
+          sistOppdatert: serverTimestamp()
+        };
       }
 
-      // Oppdater listen over lagrede møter
-      await hentLagredeMoter();
+      await updateDoc(moteRef, oppdatertData);
+      
+      // Oppdater historikk
+      const historikkRef = collection(db, 'moter', moteInfo.id, 'historikk');
+      await addDoc(historikkRef, {
+        ...oppdatertData,
+        tidspunkt: serverTimestamp()
+      });
 
-      // Vis bekreftelse
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-
+      return true;
     } catch (error) {
-      console.error('Feil ved lagring:', error);
-      alert('Kunne ikke lagre møtet. Vennligst prøv igjen.');
+      console.error('Detaljert feil ved lagring:', error);
+      return false;
     }
   };
 
@@ -720,18 +805,42 @@ function App() {
       const moteRef = doc(db, 'moter', moteInfo.id);
       updateDoc(moteRef, {
         agendaPunkter: oppdatertAgenda.map(a => ({
+          // Grunnleggende felter
           punkt: a.punkt || '',
           ansvarlig: a.ansvarlig || '',
           varighet: a.varighet || 15,
           fullfort: a.fullfort || false,
-          kommentar: a.kommentar || '',
+          
+          // Gjennomføringsdata
           startTid: a.startTid || null,
           ferdig: a.ferdig || false,
           tidBrukt: a.tidBrukt || null,
-          vedlegg: Array.isArray(a.vedlegg) ? a.vedlegg : [],
-          erLast: a.erLast || false,
+          
+          // Kommentarer og notater
+          kommentar: a.kommentar || '',
           notater: a.notater || '',
-          beslutninger: a.beslutninger || ''
+          beslutninger: a.beslutninger || '',
+          
+          // Vedlegg
+          vedlegg: Array.isArray(a.vedlegg) ? a.vedlegg.map(v => ({
+            type: v.type,
+            data: v.data,
+            timestamp: v.timestamp,
+            navn: v.navn,
+            id: v.id
+          })) : [],
+          
+          // Aksjoner
+          aksjoner: Array.isArray(a.aksjoner) ? a.aksjoner.map(aksjon => ({
+            ansvarlig: aksjon.ansvarlig,
+            beskrivelse: aksjon.beskrivelse,
+            frist: aksjon.frist,
+            opprettet: aksjon.opprettet,
+            status: aksjon.status
+          })) : [],
+          
+          // Status
+          erLast: a.erLast || false
         })),
         sistOppdatert: serverTimestamp()
       });
@@ -770,6 +879,53 @@ function App() {
       return unsubscribe;
     } catch (error) {
       console.error('Feil ved henting av historikk:', error);
+    }
+  };
+
+  const handleManuellLagring = async () => {
+    try {
+      if (!moteInfo.id || !auth.currentUser) {
+        setToastMessage('Du må være logget inn og ha et aktivt møte for å lagre');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        return;
+      }
+
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      await updateDoc(moteRef, {
+        tema: moteInfo.tema || '',
+        dato: moteInfo.dato || '',
+        startTid: moteInfo.startTid || '09:00',
+        innkallingsDato: moteInfo.innkallingsDato || '',
+        eier: moteInfo.eier || '',
+        fasilitator: moteInfo.fasilitator || '',
+        referent: moteInfo.referent || '',
+        hensikt: moteInfo.hensikt || '',
+        mal: moteInfo.mal || '',
+        deltakere: deltakere.map(d => ({
+          ...d,
+          fagFunksjon: d.fagFunksjon || '',
+          navn: d.navn || '',
+          epost: d.epost || '',
+          forberedelser: d.forberedelser || ''
+        })),
+        agendaPunkter: agendaPunkter.map(a => ({
+          ...a,
+          punkt: a.punkt || '',
+          ansvarlig: a.ansvarlig || '',
+          varighet: a.varighet || 15
+        })),
+        sistOppdatert: serverTimestamp()
+      });
+
+      setToastMessage('Møtet er lagret');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (error) {
+      console.error('Feil ved lagring:', error);
+      setToastMessage('Kunne ikke lagre møtet. Sjekk at du er logget inn og har tilgang.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     }
   };
 
@@ -833,6 +989,16 @@ function App() {
                     <div className="flex items-center space-x-6">
                       <div className="flex items-end space-x-6 h-8">
                         <button 
+                          onClick={handleManuellLagring}
+                          className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
+                          title="Lagre møte"
+                        >
+                          <Save size={18} />
+                          <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            Lagre møte
+                          </span>
+                        </button>
+                        <button 
                           onClick={startMote}
                           className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
                           title="Start møte"
@@ -840,16 +1006,6 @@ function App() {
                           <Play size={18} />
                           <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                             Start møte
-                          </span>
-                        </button>
-                        <button 
-                          onClick={lagreMote}
-                          className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
-                          title="Lagre agenda"
-                        >
-                          <Save size={18} />
-                          <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                            Lagre agenda
                           </span>
                         </button>
                         <button 

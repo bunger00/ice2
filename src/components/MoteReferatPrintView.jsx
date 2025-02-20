@@ -1,305 +1,708 @@
 import React from 'react';
 import { jsPDF } from 'jspdf';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { FileDown } from 'lucide-react';
 
 function MoteReferatPrintView({ moteInfo, deltakere, agendaPunkter, children, buttonClassName }) {
-  const handleExport = () => {
-    try {
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'pt',
-        format: 'a4'
-      });
+  // Funksjon for å komprimere base64-bilde
+  const compressImage = (base64String, maxWidth = 800, quality = 0.6) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
 
-      // Legg til logo
-      pdf.addImage('/Logolean.png', 'PNG', 450, 20, 100, 40);
-
-      // Tittel og undertittel
-      pdf.setFontSize(20);
-      pdf.setTextColor(0, 0, 0);
-      pdf.text('Møtereferat', 40, 40);
-      
-      pdf.setFontSize(14);
-      pdf.text(moteInfo.tema || '', 40, 70);
-
-      // Møteinformasjon header
-      pdf.setFontSize(14);
-      pdf.setTextColor(51, 102, 255);
-      pdf.text('Møteinformasjon', 40, 110);
-
-      // Grid for møteinfo
-      const infoBoxes = [
-        { title: 'Dato og tid', content: `${moteInfo.dato} kl. ${moteInfo.startTid}`, width: 160 },
-        { title: 'Møteeier', content: moteInfo.eier || '', width: 160 },
-        { title: 'Referent', content: moteInfo.referent || '', width: 160 }
-      ];
-
-      const infoBoxHeight = 40;
-      
-      let xPos = 40;
-      infoBoxes.forEach(box => {
-        // Bakgrunn
-        pdf.setFillColor(247, 247, 247);
-        pdf.rect(xPos, 130, box.width, infoBoxHeight, 'F');
-        
-        // Border
-        pdf.setDrawColor(230, 230, 230);
-        pdf.rect(xPos, 130, box.width, infoBoxHeight, 'S');
-        
-        // Tekst
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(10);
-        pdf.setFont(undefined, 'bold');
-        pdf.text(box.title, xPos + 10, 145);
-        pdf.setFont(undefined, 'normal');
-        pdf.text(box.content, xPos + 10, 160);
-        
-        xPos += box.width + 10;
-      });
-
-      // Deltakere og oppmøte header
-      pdf.setFontSize(14);
-      pdf.setTextColor(51, 102, 255);
-      pdf.text('Deltakere og oppmøte', 40, 200);
-
-      // Deltakertabell
-      const tableHeaders = ['Navn', 'Funksjon', 'Forberedelser', 'Utført', 'Oppmøte'];
-      const colWidths = [150, 80, 180, 50, 50];
-      const tableWidth = sum(colWidths);
-      const rowHeight = 30;
-      
-      // Tabellramme
-      pdf.setDrawColor(230, 230, 230);
-      pdf.rect(40, 220, tableWidth, 25 + (deltakere.length * rowHeight), 'S');
-
-      // Header bakgrunn
-      pdf.setFillColor(247, 247, 247);
-      pdf.rect(40, 220, tableWidth, 25, 'F');
-
-      // Vertikale linjer
-      xPos = 40;
-      colWidths.forEach(width => {
-        pdf.line(xPos, 220, xPos, 245 + (deltakere.length * rowHeight));
-        xPos += width;
-      });
-
-      // Header tekst
-      xPos = 40;
-      pdf.setFontSize(10);
-      tableHeaders.forEach((header, i) => {
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(0, 0, 0);
-        pdf.text(header, xPos + 10, 237);
-        xPos += colWidths[i];
-      });
-
-      // Deltakerrader
-      let yPos = 245;
-      pdf.setFontSize(9);
-      deltakere.forEach((deltaker, i) => {
-        pdf.line(40, yPos, 40 + tableWidth, yPos);
-
-        pdf.setFont(undefined, 'normal');
-        xPos = 40;
-        
-        pdf.text(deltaker.navn || '', xPos + 10, yPos + 15);
-        xPos += colWidths[0];
-        
-        pdf.text(deltaker.fagFunksjon || '', xPos + 10, yPos + 15);
-        xPos += colWidths[1];
-        
-        pdf.text(deltaker.forberedelser || '', xPos + 10, yPos + 15);
-        xPos += colWidths[2];
-
-        // Status sirkler
-        const drawCircle = (x, y, color) => {
-          pdf.setFillColor(...color);
-          pdf.circle(x + 25, y + 10, 5, 'F');
-        };
-
-        drawCircle(xPos, yPos + 2, deltaker.utfortStatus === 'green' ? [39, 174, 96] : [220, 53, 69]);
-        xPos += colWidths[3];
-        
-        drawCircle(xPos, yPos + 2, deltaker.oppmoteStatus === 'green' ? [39, 174, 96] : [220, 53, 69]);
-
-        yPos += rowHeight;
-      });
-
-      // Agenda og gjennomføring header
-      pdf.setFontSize(14);
-      pdf.setTextColor(51, 102, 255);
-      pdf.text('Agenda og gjennomføring', 40, yPos + 40);
-
-      // Agendapunkter
-      const agendaStartY = yPos + 60;
-      let currentY = agendaStartY;
-      
-      agendaPunkter.forEach((punkt, index) => {
-        // Sjekk om vi trenger ny side (hvis mindre enn 150pt igjen på siden)
-        if (currentY > 750) {  // A4 er ca 842pt høy
-          pdf.addPage();
-          currentY = 40;  // Start på toppen av ny side
+        // Beregn nye dimensjoner hvis bildet er for stort
+        if (width > maxWidth) {
+          height = Math.floor(height * (maxWidth / width));
+          width = maxWidth;
         }
 
-        const boxY = currentY;
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
         
-        // Hovedboks med lys grå bakgrunn og avrundede hjørner
-        pdf.setFillColor(247, 247, 247);
-        pdf.roundedRect(40, boxY, 520, 100, 3, 3, 'F');
-        
-        // Del opp i fire kolonner
-        const colX = {
-          planlagt: 40,
-          faktisk: 160,
-          agenda: 280,
-          kommentar: 400
+        // Komprimer til JPEG med redusert kvalitet
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = base64String;
+    });
+  };
+
+  const handleExport = async () => {
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true
+      });
+
+      const margin = 20;
+      const pageWidth = 210;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPos = 20;
+
+      // Komprimer og legg til logo med redusert størrelse
+      const logoImg = document.createElement('img');
+      logoImg.src = "/Logolean.png";
+      await new Promise((resolve) => {
+        logoImg.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = logoImg.width / 2;
+          canvas.height = logoImg.height / 2;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(logoImg, 0, 0, canvas.width, canvas.height);
+          doc.addImage(
+            logoImg.src,  // Bruk original PNG istedenfor konvertert JPEG
+            "PNG",        // Bruk PNG-format for å beholde transparens og farger
+            pageWidth - 50,
+            yPos,
+            30,
+            10,
+            undefined,
+            'FAST'
+          );
+          resolve();
         };
-        
-        // Planlagt tid
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFontSize(10);
-        pdf.text('Planlagt tid', colX.planlagt + 10, boxY + 20);
-        pdf.setFont(undefined, 'bold');  // Beholder bold for klokkeslettet
-        pdf.text('12:30', colX.planlagt + 10, boxY + 40);  // Klokkeslett i bold
-        pdf.setFont(undefined, 'normal');
-        pdf.setTextColor(128, 128, 128);
-        pdf.text(`Varighet: ${punkt.varighet} min`, colX.planlagt + 10, boxY + 55);
-        
-        // Faktisk tid
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Faktisk tid', colX.faktisk + 10, boxY + 20);
-        pdf.setFont(undefined, 'normal');
-        pdf.text(punkt.faktiskStartTid || 'Ikke startet', colX.faktisk + 10, boxY + 40);
-        
-        // Agendapunkt
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Agendapunkt', colX.agenda + 10, boxY + 20);
-        pdf.setFont(undefined, 'normal');
-        // Del teksten over flere linjer hvis den er for lang
-        const agendaLinjer = pdf.splitTextToSize(punkt.punkt || '', colX.kommentar - colX.agenda - 20);
-        agendaLinjer.forEach((linje, i) => {
-          pdf.text(linje, colX.agenda + 10, boxY + 40 + (i * 12));
+      });
+
+      // Hovedtittel
+      doc.setFontSize(24);
+      doc.text("Møtereferat", margin, yPos + 10);
+      yPos += 25;
+
+      // Undertittel (møtenavn)
+      doc.setFontSize(16);
+      doc.text(moteInfo.tema || "Fremdriftsmøte", margin, yPos);
+      yPos += 20;
+
+      // Seksjonstittel - Møteinformasjon
+      doc.setFontSize(14);
+      doc.setTextColor(40, 80, 160);
+      doc.text("Møteinformasjon", margin, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 5;
+
+      // Funksjon for å beregne tekst høyde
+      const getTextHeight = (text, maxWidth) => {
+        const lines = doc.splitTextToSize(text.toString(), maxWidth - 6);
+        return lines.length * 4;  // 4mm per linje
+      };
+
+      // Funksjon for å tegne statussirkler
+      const drawStatusCircle = (x, y, status) => {
+        doc.setDrawColor(200, 200, 200);
+        doc.setFillColor(
+          status === 'green' ? '#4CAF50' :
+          status === 'red' ? '#F44336' :
+          '#FFFFFF'
+        );
+        doc.circle(x, y, 2.5, 'FD');  // Redusert radius fra 3 til 2.5
+      };
+
+      // Funksjon for å tegne tabell med grå header
+      const drawTableWithHeader = (headers, rows, startY, rowHeight = 8) => {  // Redusert fra 10 til 8
+        const colWidth = contentWidth / headers.length;
+        let currentY = startY;
+
+        // Tegn header bakgrunn
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin, currentY, contentWidth, rowHeight, 'F');
+
+        // Beregn høyde for hver rad basert på innhold
+        const rowHeights = rows.map(row => {
+          const heights = row.map((cell, colIndex) => {
+            if (colIndex < 3) {  // Bare beregn høyde for de første 3 kolonnene
+              return getTextHeight(cell, colWidth);
+            }
+            return 4;  // Minimum høyde for status-kolonner
+          });
+          return Math.max(...heights, rowHeight);  // Minimum rowHeight
         });
-        pdf.setTextColor(128, 128, 128);
-        pdf.text(`Ansvarlig: ${punkt.ansvarlig}`, colX.agenda + 10, boxY + 70);  // Justert Y-posisjon
+
+        const totalHeight = rowHeight + rowHeights.reduce((a, b) => a + b, 0);
+
+        // Tegn ramme rundt hele tabellen
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(margin, currentY, contentWidth, totalHeight, 'S');
+
+        // Tegn horisontale linjer
+        let accumHeight = currentY + rowHeight;
+        rowHeights.forEach(height => {
+          doc.line(margin, accumHeight, margin + contentWidth, accumHeight);
+          accumHeight += height;
+        });
+
+        // Tegn vertikale linjer
+        for (let i = 1; i < headers.length; i++) {
+          doc.line(
+            margin + (colWidth * i),
+            currentY,
+            margin + (colWidth * i),
+            currentY + totalHeight
+          );
+        }
+
+        // Header tekst
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        headers.forEach((header, i) => {
+          if (header === 'Utført' || header === 'Oppmøte') {
+            const textWidth = doc.getTextWidth(header);
+            const xPos = margin + (colWidth * i) + (colWidth - textWidth) / 2;
+            doc.text(header, xPos, currentY + 6);  // Justert fra 7 til 6
+          } else {
+            doc.text(header, margin + (colWidth * i) + 3, currentY + 6);  // Justert fra 7 til 6
+          }
+        });
+
+        // Rad tekst
+        doc.setFont(undefined, 'normal');
+        let yOffset = rowHeight;
+        rows.forEach((row, rowIndex) => {
+          row.forEach((cell, colIndex) => {
+            if (colIndex < 3) {  // Bare tekst for de første 3 kolonnene
+              const lines = doc.splitTextToSize(cell.toString(), colWidth - 6);
+              lines.forEach((line, lineIndex) => {
+                doc.text(
+                  line,
+                  margin + (colWidth * colIndex) + 3,
+                  currentY + yOffset + (lineIndex * 4) + 4
+                );
+              });
+            }
+          });
+          yOffset += rowHeights[rowIndex];
+        });
+
+        return currentY + totalHeight;
+      };
+
+      // Møteinformasjon tabell
+      const infoHeaders = ['Dato og tid', 'Møteeier', 'Referent'];
+      const infoData = [[
+        `${new Date(moteInfo.dato).toLocaleDateString('no-NO')} kl. ${moteInfo.startTid}`,
+        moteInfo.eier,
+        moteInfo.referent
+      ]];
+
+      yPos = drawTableWithHeader(infoHeaders, infoData, yPos);
+      yPos += 10;
+
+      // Seksjonstittel - Deltakere
+      doc.setFontSize(14);
+      doc.setTextColor(40, 80, 160);
+      doc.text("Deltakere og oppmøte", margin, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 5;
+
+      // Deltakere tabell
+      const deltakereHeaders = ['Navn', 'Funksjon', 'Forberedelser', 'Utført', 'Oppmøte'];
+      const deltakereRows = deltakere.map(d => [
+        d.navn,
+        d.fagFunksjon,
+        d.forberedelser,
+        '',
+        ''
+      ]);
+
+      const deltakerStartY = yPos;
+      
+      // Beregn høyde for hver deltakerrad basert på innhold
+      const deltakerRowHeights = deltakereRows.map(row => {
+        const textHeights = row.slice(0, 3).map(cell => getTextHeight(cell, contentWidth / 5));
+        return Math.max(...textHeights, 8); // Minimum 8mm høyde
+      });
+
+      // Tegn deltakertabell med dynamisk høyde
+      const colWidth = contentWidth / deltakereHeaders.length;
+      
+      // Header
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, deltakerStartY, contentWidth, 8, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(margin, deltakerStartY, contentWidth, 8, 'S');
+      
+      // Header tekst
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      deltakereHeaders.forEach((header, i) => {
+        const xPos = margin + (colWidth * i);
+        if (header === 'Utført' || header === 'Oppmøte') {
+          const textWidth = doc.getTextWidth(header);
+          doc.text(header, xPos + (colWidth - textWidth) / 2, deltakerStartY + 6);
+        } else {
+          doc.text(header, xPos + 3, deltakerStartY + 6);
+        }
+      });
+
+      // Tegn vertikale linjer
+      let currentY = deltakerStartY;
+      const totalHeight = 8 + deltakerRowHeights.reduce((a, b) => a + b, 0);
+      for (let i = 1; i < deltakereHeaders.length; i++) {
+        doc.line(
+          margin + (colWidth * i),
+          currentY,
+          margin + (colWidth * i),
+          currentY + totalHeight
+        );
+      }
+
+      // Tegn rader med innhold
+      currentY += 8; // Start etter header
+      doc.setFont(undefined, 'normal');
+      deltakereRows.forEach((row, rowIndex) => {
+        const rowHeight = deltakerRowHeights[rowIndex];
         
-        // Kommentar
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Kommentar', colX.kommentar + 10, boxY + 20);
-        pdf.setFont(undefined, 'normal');
+        // Tegn horisontal linje
+        doc.line(margin, currentY, margin + contentWidth, currentY);
         
-        if (punkt.vedlegg && punkt.vedlegg.length > 0) {
-          pdf.text('Vedlagte skjermbilder:', colX.kommentar + 10, boxY + 40);
-          punkt.vedlegg.forEach((vedlegg, i) => {
-            pdf.addImage(
-              vedlegg.data,
-              'PNG',
-              colX.kommentar + 10,
-              boxY + 45,
-              100,  // Bredde
-              45    // Høyde
+        // Tegn celleinnhold
+        row.slice(0, 3).forEach((cell, colIndex) => {
+          const lines = doc.splitTextToSize(cell.toString(), colWidth - 6);
+          lines.forEach((line, lineIndex) => {
+            doc.text(
+              line,
+              margin + (colWidth * colIndex) + 3,
+              currentY + 4 + (lineIndex * 4)
             );
           });
-        } else if (punkt.kommentar) {
-          const kommentarLinjer = pdf.splitTextToSize(punkt.kommentar, 110);
-          kommentarLinjer.forEach((linje, i) => {
-            pdf.text(linje, colX.kommentar + 10, boxY + 40 + (i * 12));
+        });
+
+        // Tegn statussirkler
+        const utfortX = margin + colWidth * 3 + colWidth / 2;
+        const oppmoteX = margin + colWidth * 4 + colWidth / 2;
+        const circleY = currentY + rowHeight / 2;
+        
+        // Tegn statussirkler
+        const deltaker = deltakere[rowIndex];
+        drawStatusCircle(utfortX, circleY, deltaker.utfortStatus);
+        drawStatusCircle(oppmoteX, circleY, deltaker.oppmoteStatus);
+
+        currentY += rowHeight;
+      });
+
+      // Tegn bunnlinje
+      doc.line(margin, currentY, margin + contentWidth, currentY);
+      
+      yPos = currentY + 10;
+
+      // Seksjonstittel - Agenda
+      doc.setFontSize(14);
+      doc.setTextColor(40, 80, 160);
+      doc.text("Agenda og gjennomføring", margin, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 5;
+
+      // Agenda tabell med dynamisk høyde
+      const agendaHeaders = ['Tid', 'Agendapunkt', 'Kommentar'];
+      const colWidths = [30, 70, contentWidth - 100];
+
+      // Funksjon for å beregne høyde for agendapunkt
+      const getAgendaRowHeight = (punkt) => {
+        const tidHeight = 8 + 4; // Høyde for klokkeslett + varighet
+        const punktHeight = getTextHeight(punkt.punkt, colWidths[1]) + 
+                          getTextHeight(`Ansvarlig: ${punkt.ansvarlig}`, colWidths[1]);
+        const kommentarHeight = getTextHeight(punkt.kommentar || '', colWidths[2]);
+        return Math.max(tidHeight, punktHeight, kommentarHeight, 12); // Minimum 12mm høyde for å romme to linjer
+      };
+
+      // Funksjon for å tegne tabellrammer
+      const drawTableBorders = (startY, height) => {
+        // Ytre ramme
+        doc.rect(margin, startY, contentWidth, height, 'S');
+
+      // Vertikale linjer
+        doc.line(margin + colWidths[0], startY, margin + colWidths[0], startY + height);
+        doc.line(margin + colWidths[0] + colWidths[1], startY, margin + colWidths[0] + colWidths[1], startY + height);
+      };
+
+      // Header bakgrunn og ramme
+      const headerHeight = 8; // Redusert fra 10
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, yPos, contentWidth, headerHeight, 'F');
+      drawTableBorders(yPos, headerHeight);
+
+      // Header tekst
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(10);
+      let xPos = margin;
+      agendaHeaders.forEach((header, i) => {
+        doc.text(header, xPos + 3, yPos + 6);
+        xPos += colWidths[i];
+      });
+      yPos += headerHeight;
+
+      // Funksjon for å sjekke om agendapunkt passer på siden
+      const sjekkSideskift = (punkt, currentYPos) => {
+        const punktHoyde = getAgendaRowHeight(punkt);
+        return (currentYPos + punktHoyde) > 270; // Redusert margin for sideskift
+      };
+
+      // Funksjon for å skrive seksjonstittel
+      const writeSectionTitle = (title, currentY) => {
+        doc.setFontSize(14);
+        doc.setTextColor(40, 80, 160);
+        doc.text(title, margin, currentY);
+        doc.setTextColor(0, 0, 0);
+        return currentY + 15;
+      };
+
+      // Agenda innhold
+      const processAgendaPunkter = async () => {
+        for (const punkt of agendaPunkter) {
+          // Sjekk om vi trenger ny side
+          if (sjekkSideskift(punkt, yPos)) {
+            doc.addPage();
+            yPos = 20;
+            
+            // Gjenta overskrift på ny side
+            yPos = writeSectionTitle("Agenda og gjennomføring", yPos);
+            
+            // Gjenta header på ny side
+            doc.setFillColor(245, 245, 245);
+            doc.rect(margin, yPos, contentWidth, headerHeight, 'F');
+            drawTableBorders(yPos, headerHeight);
+            
+            let headerXPos = margin;
+            agendaHeaders.forEach((header, i) => {
+              doc.setFont(undefined, 'bold');
+              doc.setFontSize(10);
+              doc.text(header, headerXPos + 3, yPos + 6);
+              headerXPos += colWidths[i];
+            });
+            yPos += headerHeight;
+          }
+
+          // Beregn klokkeslett
+          const index = agendaPunkter.indexOf(punkt);
+          const klokkeslett = punkt.tid || 
+            (index === 0 ? moteInfo.startTid : 
+              (() => {
+                const startTid = new Date(`2000-01-01T${moteInfo.startTid}`);
+                for (let i = 0; i < index; i++) {
+                  startTid.setMinutes(startTid.getMinutes() + agendaPunkter[i].varighet);
+                }
+                return startTid.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' });
+              })());
+
+          // Beregn radhøyde basert på innhold
+          const rowHeight = getAgendaRowHeight(punkt);
+          
+          // Tegn tabellramme for hovedraden
+          doc.setDrawColor(200, 200, 200);
+          drawTableBorders(yPos, rowHeight);
+
+          // Tid kolonne
+          doc.setFont(undefined, 'bold');
+          doc.setFontSize(10);
+          doc.text(klokkeslett, margin + 3, yPos + 5);
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(8);
+          doc.text(`${punkt.varighet} min`, margin + 3, yPos + 10);
+
+          // Agendapunkt og ansvarlig
+          doc.setFont(undefined, 'bold');
+          doc.setFontSize(10);
+          const punktLinjer = doc.splitTextToSize(punkt.punkt, colWidths[1] - 6);
+          punktLinjer.forEach((linje, i) => {
+            doc.text(linje, margin + colWidths[0] + 3, yPos + 5 + (i * 4));
           });
+          
+          doc.setFont(undefined, 'normal');
+          doc.setFontSize(8);
+          doc.text(
+            `Ansvarlig: ${punkt.ansvarlig}`, 
+            margin + colWidths[0] + 3, 
+            yPos + 5 + (punktLinjer.length * 4) + 2  // Redusert fra 4 til 2
+          );
+        
+        // Kommentar
+          if (punkt.kommentar) {
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(8);
+            const kommentarLinjer = doc.splitTextToSize(punkt.kommentar, colWidths[2] - 6);
+            kommentarLinjer.forEach((linje, i) => {
+              doc.text(linje, margin + colWidths[0] + colWidths[1] + 3, yPos + 5 + (i * 4));
+            });
+          }
+
+          yPos += rowHeight;
+
+          // Hvis det finnes aksjoner eller vedlegg
+          if ((punkt.aksjoner && punkt.aksjoner.length > 0) || (punkt.vedlegg && punkt.vedlegg.length > 0)) {
+            const ekstraRadHoyde = 50; // Økt høyde for bedre plass
+            
+            // Tegn hovedramme for rad 2
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(margin, yPos, contentWidth, ekstraRadHoyde, 'S');
+            
+            // Del opp i to kolonner med vertikal linje
+            const aksjonerBredde = contentWidth * 0.6;
+            const vedleggBredde = contentWidth * 0.4;
+            doc.line(
+              margin + aksjonerBredde,
+              yPos,
+              margin + aksjonerBredde,
+              yPos + ekstraRadHoyde
+            );
+
+            // Aksjoner seksjon (venstre kolonne)
+            if (punkt.aksjoner && punkt.aksjoner.length > 0) {
+              // Overskrift for aksjoner
+              doc.setFont(undefined, 'bold');
+              doc.setFontSize(9);
+              doc.text("Aksjoner", margin + 3, yPos + 7);
+
+              // Aksjonstabell header med grå bakgrunn
+              const aksjonHeaderY = yPos + 10;
+              doc.setFillColor(245, 245, 245);
+              doc.rect(margin + 2, aksjonHeaderY, aksjonerBredde - 4, 8, 'F');
+
+              const kolonnebredder = [
+                (aksjonerBredde - 4) * 0.5,
+                (aksjonerBredde - 4) * 0.25,
+                (aksjonerBredde - 4) * 0.25
+              ];
+
+              // Tegn aksjonstabell header
+              doc.setFont(undefined, 'bold');
+              doc.setFontSize(8);
+              doc.text("Aksjon", margin + 5, aksjonHeaderY + 6);
+              doc.text("Ansvarlig", margin + 5 + kolonnebredder[0], aksjonHeaderY + 6);
+              doc.text("Frist", margin + 5 + kolonnebredder[0] + kolonnebredder[1], aksjonHeaderY + 6);
+
+              // Vertikale linjer i aksjonstabell header
+              doc.line(
+                margin + 2 + kolonnebredder[0],
+                aksjonHeaderY,
+                margin + 2 + kolonnebredder[0],
+                aksjonHeaderY + 8
+              );
+              doc.line(
+                margin + 2 + kolonnebredder[0] + kolonnebredder[1],
+                aksjonHeaderY,
+                margin + 2 + kolonnebredder[0] + kolonnebredder[1],
+                aksjonHeaderY + 8
+              );
+
+              // Aksjonrader
+              let currentY = aksjonHeaderY + 8;
+              punkt.aksjoner.forEach((aksjon) => {
+                const radHoyde = 6;
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(margin + 2, currentY, aksjonerBredde - 4, radHoyde, 'S');
+                
+                doc.setFont(undefined, 'normal');
+                doc.setFontSize(8);
+                const beskrivelse = doc.splitTextToSize(aksjon.beskrivelse, kolonnebredder[0] - 6);
+                doc.text(beskrivelse, margin + 5, currentY + 4);
+                doc.text(aksjon.ansvarlig, margin + 5 + kolonnebredder[0], currentY + 4);
+                doc.text(
+                  new Date(aksjon.frist).toLocaleDateString('no-NO'),
+                  margin + 5 + kolonnebredder[0] + kolonnebredder[1],
+                  currentY + 4
+                );
+
+                // Vertikale linjer i aksjonrad
+                doc.line(
+                  margin + 2 + kolonnebredder[0],
+                  currentY,
+                  margin + 2 + kolonnebredder[0],
+                  currentY + radHoyde
+                );
+                doc.line(
+                  margin + 2 + kolonnebredder[0] + kolonnebredder[1],
+                  currentY,
+                  margin + 2 + kolonnebredder[0] + kolonnebredder[1],
+                  currentY + radHoyde
+                );
+
+                currentY += radHoyde;
+              });
+            }
+
+            // Vedlegg seksjon (høyre kolonne)
+            if (punkt.vedlegg && punkt.vedlegg.length > 0) {
+              // Overskrift for vedlegg
+              doc.setFont(undefined, 'bold');
+              doc.setFontSize(9);
+              doc.text(
+                "Skjermbilder",
+                margin + aksjonerBredde + 3,
+                yPos + 7
+              );
+
+              let vedleggY = yPos + 12;
+              const maxVedleggPerRad = 2;
+              const vedleggPadding = 3;
+              const maxBildeHoyde = (ekstraRadHoyde - 15) / Math.ceil(punkt.vedlegg.length / maxVedleggPerRad);
+              const maxBildeBredde = (vedleggBredde - (vedleggPadding * 3)) / maxVedleggPerRad;
+
+              // Behandle vedlegg
+              for (let i = 0; i < punkt.vedlegg.length; i++) {
+                const vedlegg = punkt.vedlegg[i];
+                try {
+                  const komprimertBilde = await compressImage(vedlegg.data, 600, 0.5);
+                  
+                  // Beregn X-posisjon basert på kolonne
+                  const kolonne = i % maxVedleggPerRad;
+                  const xPos = margin + aksjonerBredde + vedleggPadding + 
+                             (kolonne * (maxBildeBredde + vedleggPadding));
+
+                  // Beregn Y-posisjon basert på rad
+                  const rad = Math.floor(i / maxVedleggPerRad);
+                  const yPosForBilde = vedleggY + (rad * (maxBildeHoyde + vedleggPadding));
+
+                  doc.addImage(
+                    komprimertBilde,
+                    'JPEG',
+                    xPos,
+                    yPosForBilde,
+                    maxBildeBredde,
+                    maxBildeHoyde - 5,
+                    undefined,
+                    'FAST'
+                  );
+
+                  // Legg til bildenavn under bildet
+                  doc.setFont(undefined, 'italic');
+                  doc.setFontSize(7);
+                  const navnX = xPos;
+                  const navnY = yPosForBilde + maxBildeHoyde - 3;
+                  doc.text(vedlegg.navn, navnX, navnY);
+
+                } catch (error) {
+                  console.error('Kunne ikke legge til vedlegg:', error);
+                }
+              }
+            } else if (punkt.aksjoner && punkt.aksjoner.length > 0) {
+              // Hvis det bare er aksjoner, vis en melding i høyre kolonne
+              doc.setFont(undefined, 'italic');
+              doc.setFontSize(8);
+              doc.text(
+                "Ingen skjermbilder",
+                margin + aksjonerBredde + 3,
+                yPos + 25
+              );
+            }
+
+            yPos += ekstraRadHoyde;
+          }
+
+          yPos += 5;
         }
+      };
 
-        currentY += 120;  // Øk Y-posisjonen for neste punkt
-      });
+      await processAgendaPunkter();
 
-      // Måloppnåelse - sjekk om vi trenger ny side
-      if (currentY + 200 > 750) {  // 200pt er estimert høyde for måloppnåelse-seksjonen
-        pdf.addPage();
-        currentY = 40;
+      // Status i bunn
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
       }
 
-      // Måloppnåelse header
-      const malY = currentY + 40;
-      pdf.setFontSize(14);
-      pdf.setTextColor(51, 102, 255);
-      pdf.text('Måloppnåelse', 40, malY);
+      doc.setFontSize(14);
+      doc.setTextColor(40, 80, 160);
+      doc.text("Status", margin, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 10;
 
-      // Målsetting label og tekst
-      pdf.setFontSize(10);
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFont(undefined, 'bold');
-      pdf.text('Målsetting:', 40, malY + 30);
-      pdf.setFont(undefined, 'normal');
-
-      // Del målsettingsteksten over flere linjer hvis nødvendig
-      const malLinjer = pdf.splitTextToSize(moteInfo.mal || '', 500);
-      malLinjer.forEach((linje, i) => {
-        pdf.text(linje, 40, malY + 50 + (i * 15));
-      });
-
-      // Status boks
-      const statusY = malY + 70 + (malLinjer.length * 15);
+      // Tegn statusboks
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, yPos, contentWidth, 35, 'F');  // Økt høyde for å få plass til knapper og dato
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(margin, yPos, contentWidth, 35, 'S');
       
-      // Sjekk om status er oppnådd - matcher datastrukturen fra handleSave
-      const isOppnadd = moteInfo.gjennomforingsStatus?.statusOppnadd === 'oppnadd';
-      
-      if (isOppnadd) {
-        // Lys grønn bakgrunnsboks
-        pdf.setFillColor(236, 252, 243);  // #ecfcf3
-        pdf.roundedRect(40, statusY, 520, 60, 3, 3, 'F');
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      doc.text("Målsetting for møtet:", margin + 3, yPos + 6);
+      doc.setFont(undefined, 'normal');
+      doc.text(moteInfo.mal || '', margin + 3, yPos + 12);
 
-        // Grønn "Oppnådd" knapp med sirkel og hake
-        pdf.setFillColor(39, 174, 96);  // #27ae60
-        pdf.roundedRect(55, statusY + 15, 100, 30, 3, 3, 'F');
-        
-        // Hvit sirkel og hake
-        pdf.setFillColor(255, 255, 255);
-        pdf.circle(70, statusY + 30, 8, 'F');
-        
-        // Hvit tekst "Oppnådd"
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('✓ Oppnådd', 75, statusY + 33);
+      // Tegn "Oppnådde dere målet med møtet?" tekst
+      doc.setFont(undefined, 'bold');
+      doc.text("Oppnådde dere målet med møtet?", margin + 3, yPos + 20);
+
+      // Tegn knapper
+      const buttonWidth = 25;
+      const buttonHeight = 8;
+      const buttonSpacing = 5;
+      const buttonY = yPos + 23;
+
+      // "Oppnådd" knapp
+      doc.setDrawColor(200, 200, 200);
+      if (moteInfo.gjennomforingsStatus?.statusOppnadd === 'oppnadd') {
+        doc.setFillColor(76, 175, 80); // Grønn farge
+        doc.setTextColor(255, 255, 255);
       } else {
-        // Lys rød bakgrunnsboks
-        pdf.setFillColor(255, 235, 235);  // Lys rød bakgrunn
-        pdf.roundedRect(40, statusY, 520, 60, 3, 3, 'F');
+        doc.setFillColor(255, 255, 255);
+        doc.setTextColor(0, 0, 0);
+      }
+      doc.roundedRect(margin + 3, buttonY, buttonWidth, buttonHeight, 1, 1, 'FD');
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(8);
+      doc.text("Oppnådd", margin + 5, buttonY + 5.5);
 
-        // Hvit knapp med rød border
-        pdf.setDrawColor(220, 53, 69);  // Rød border
-        pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(55, statusY + 15, 120, 30, 3, 3, 'FD');
-        
-        // Rød tekst "Ikke oppnådd"
-        pdf.setTextColor(220, 53, 69);
-        pdf.setFont(undefined, 'bold');
-        pdf.text('Ikke oppnådd', 75, statusY + 33);
+      // "Ikke oppnådd" knapp
+      if (moteInfo.gjennomforingsStatus?.statusOppnadd === 'ikke_oppnadd') {
+        doc.setFillColor(244, 67, 54); // Rød farge
+        doc.setTextColor(255, 255, 255);
+      } else {
+        doc.setFillColor(255, 255, 255);
+        doc.setTextColor(0, 0, 0);
+      }
+      doc.roundedRect(margin + buttonWidth + buttonSpacing + 3, buttonY, buttonWidth + 5, buttonHeight, 1, 1, 'FD');
+      doc.text("Ikke oppnådd", margin + buttonWidth + buttonSpacing + 5, buttonY + 5.5);
 
-        // Ny dato (hvis den finnes)
-        if (moteInfo.nyDato) {
-          pdf.setTextColor(0, 0, 0);
-          pdf.text('Ny dato:', 190, statusY + 33);
-          pdf.setFont(undefined, 'normal');
-          pdf.text(moteInfo.nyDato, 250, statusY + 33);
-        }
+      // Vis ny dato hvis status er "ikke oppnådd"
+      if (moteInfo.gjennomforingsStatus?.statusOppnadd === 'ikke_oppnadd' && moteInfo.gjennomforingsStatus?.nyDato) {
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.text("Ny dato:", margin + buttonWidth * 2 + buttonSpacing + 10, buttonY + 5.5);
+        doc.setFont(undefined, 'normal');
+        doc.text(
+          new Date(moteInfo.gjennomforingsStatus.nyDato).toLocaleDateString('no-NO'),
+          margin + buttonWidth * 2 + buttonSpacing + 35,
+          buttonY + 5.5
+        );
       }
 
-      pdf.save(`${moteInfo.tema || 'motereferat'}.pdf`);
+      doc.setTextColor(0, 0, 0); // Reset text color
+
+      // Optimaliser PDF før lagring
+      doc.setProperties({
+        title: `Møtereferat-${moteInfo.tema}`,
+        creator: 'ICE Meeting',
+        producer: 'ICE Meeting',
+        compressed: true
+      });
+
+      // Lagre PDF med optimaliserte innstillinger
+      const filnavn = `Møtereferat-${moteInfo.tema}-${new Date().toLocaleDateString('no-NO')}.pdf`;
+      doc.save(filnavn);
+
     } catch (error) {
-      console.error('Feil ved PDF-generering:', error);
-      alert('Kunne ikke generere PDF: ' + error.message);
+      console.error('Feil ved eksport av møtereferat:', error);
+      alert('Kunne ikke eksportere møtereferatet. Vennligst prøv igjen.');
     }
   };
 
-  const sum = arr => arr.reduce((a, b) => a + b, 0);
-
   return (
-    <div className="inline-block">
-      <button onClick={handleExport} className={buttonClassName}>
-        {children}
+    <button 
+      onClick={handleExport} 
+      className={buttonClassName || "flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm rounded-md border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"}
+    >
+      {children || (
+        <>
+          <FileDown size={14} />
+          Eksporter møtereferat
+        </>
+      )}
       </button>
-    </div>
   );
 }
 
