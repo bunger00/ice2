@@ -1,9 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Slider from 'rc-slider';
-import 'rc-slider/assets/index.css';
+// Fjerner direkte CSS-import som kan forårsake problemer under bygging
+// import 'rc-slider/assets/index.css';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+
+// Inline styles for Slider-komponenten for å unngå CSS-importfeil
+const sliderStyles = {
+  rail: { backgroundColor: '#e5e7eb', height: 8 },
+  track: { backgroundColor: '#3b82f6', height: 8 },
+  handle: {
+    borderColor: '#3b82f6',
+    backgroundColor: 'white',
+    height: 20,
+    width: 20,
+    marginTop: -6
+  }
+};
 
 const SurveyForm = () => {
   const { moteId } = useParams();
@@ -157,15 +171,9 @@ const SurveyForm = () => {
                   step={1}
                   value={answers.preparedRating}
                   onChange={handleChange('preparedRating')}
-                  railStyle={{ backgroundColor: '#e5e7eb', height: 8 }}
-                  trackStyle={{ backgroundColor: '#3b82f6', height: 8 }}
-                  handleStyle={{
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'white',
-                    height: 20,
-                    width: 20,
-                    marginTop: -6
-                  }}
+                  railStyle={sliderStyles.rail}
+                  trackStyle={sliderStyles.track}
+                  handleStyle={sliderStyles.handle}
                 />
                 <div className="flex justify-between mt-2 text-xs text-gray-500">
                   <span>Ikke forberedt</span>
@@ -189,15 +197,9 @@ const SurveyForm = () => {
                   step={1}
                   value={answers.effectiveRating}
                   onChange={handleChange('effectiveRating')}
-                  railStyle={{ backgroundColor: '#e5e7eb', height: 8 }}
-                  trackStyle={{ backgroundColor: '#3b82f6', height: 8 }}
-                  handleStyle={{
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'white',
-                    height: 20,
-                    width: 20,
-                    marginTop: -6
-                  }}
+                  railStyle={sliderStyles.rail}
+                  trackStyle={sliderStyles.track}
+                  handleStyle={sliderStyles.handle}
                 />
                 <div className="flex justify-between mt-2 text-xs text-gray-500">
                   <span>Ikke effektivt</span>
@@ -221,15 +223,9 @@ const SurveyForm = () => {
                   step={1}
                   value={answers.contributionRating}
                   onChange={handleChange('contributionRating')}
-                  railStyle={{ backgroundColor: '#e5e7eb', height: 8 }}
-                  trackStyle={{ backgroundColor: '#3b82f6', height: 8 }}
-                  handleStyle={{
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'white',
-                    height: 20,
-                    width: 20,
-                    marginTop: -6
-                  }}
+                  railStyle={sliderStyles.rail}
+                  trackStyle={sliderStyles.track}
+                  handleStyle={sliderStyles.handle}
                 />
                 <div className="flex justify-between mt-2 text-xs text-gray-500">
                   <span>Bidro lite</span>
