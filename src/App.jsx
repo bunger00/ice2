@@ -33,7 +33,12 @@ function App() {
     fasilitator: '',
     referent: '',
     hensikt: '',
-    mal: ''
+    mal: '',
+    gjennomforingsStatus: {
+      statusOppnadd: '',
+      nyDato: '',
+      mal: ''
+    }
   });
 
   const [deltakere, setDeltakere] = useState([]);
@@ -313,7 +318,12 @@ function App() {
       fasilitator: moteData.fasilitator || '',
       referent: moteData.referent || '',
       hensikt: moteData.hensikt || '',
-      mal: moteData.mal || ''
+      mal: moteData.mal || '',
+      gjennomforingsStatus: moteData.gjennomforingsStatus || {
+        statusOppnadd: '',
+        nyDato: '',
+        mal: moteData.mal || ''
+      }
     });
 
     setDeltakere(moteData.deltakere?.map(d => ({
@@ -384,7 +394,12 @@ function App() {
       fasilitator: '',
       referent: '',
       hensikt: '',
-      mal: ''
+      mal: '',
+      gjennomforingsStatus: {
+        statusOppnadd: '',
+        nyDato: '',
+        mal: ''
+      }
     });
 
     setDeltakere([
@@ -427,7 +442,12 @@ function App() {
       fasilitator: 'Mari Prosjektleder',
       referent: 'Ole Teknisk',
       hensikt: 'Gjennomgang av fremdrift, HMS-status og koordinering mellom fag',
-      mal: 'Sikre god flyt i byggeprosessen og løse eventuelle utfordringer mellom fagene'
+      mal: 'Sikre god flyt i byggeprosessen og løse eventuelle utfordringer mellom fagene',
+      gjennomforingsStatus: {
+        statusOppnadd: '',
+        nyDato: '',
+        mal: ''
+      }
     });
 
     const dummyDeltakere = [
@@ -708,7 +728,12 @@ function App() {
           fasilitator: data.fasilitator || '',
           referent: data.referent || '',
           hensikt: data.hensikt || '',
-          mal: data.mal || ''
+          mal: data.mal || '',
+          gjennomforingsStatus: data.gjennomforingsStatus || {
+            statusOppnadd: '',
+            nyDato: '',
+            mal: data.mal || ''
+          }
         });
         
         // Oppdater deltakere og agenda

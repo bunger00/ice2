@@ -158,7 +158,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
 
   const [aktivtPunkt, setAktivtPunkt] = useState(null);
   const [statusOppnadd, setStatusOppnadd] = useState(
-    moteInfo.statusOppnadd || moteInfo.gjennomforingsStatus?.statusOppnadd || null
+    moteInfo.statusOppnadd || moteInfo.gjennomforingsStatus?.statusOppnadd || ''
   );
   const [nyDato, setNyDato] = useState(
     moteInfo.nyDato || moteInfo.gjennomforingsStatus?.nyDato || ''
@@ -232,6 +232,10 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     // Set new timer for saving
     debounceTimer.current = setTimeout(async () => {
       try {
+        // Konsekvent bruk av tomme strenger i stedet for null
+        const currentStatusOppnadd = statusOppnadd || '';
+        const currentNyDato = nyDato || '';
+        
         const gjennomforingsData = {
           id: moteInfo.id,
           tema: moteInfo.tema || '',
@@ -245,8 +249,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
           mal: moteInfo.mal || '',
           erGjennomfort: true,
           gjennomforingsStatus: {
-            statusOppnadd: statusOppnadd || '',
-            nyDato: nyDato || '',
+            statusOppnadd: currentStatusOppnadd,
+            nyDato: currentNyDato,
             mal: moteInfo.mal || ''
           },
           statusInfo: {
@@ -547,6 +551,10 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         erLast: punkt.erLast || false
       }));
 
+      // Konsekvent bruk av tomme strenger i stedet for null
+      const currentStatusOppnadd = statusOppnadd || '';
+      const currentNyDato = nyDato || '';
+
       const gjennomforingsData = {
         id: moteInfo.id,
         tema: moteInfo.tema || '',
@@ -560,8 +568,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         mal: moteInfo.mal || '',
         erGjennomfort: true,
         gjennomforingsStatus: {
-          statusOppnadd: statusOppnadd || '',
-          nyDato: nyDato || '',
+          statusOppnadd: currentStatusOppnadd,
+          nyDato: currentNyDato,
           mal: moteInfo.mal || ''
         },
         statusInfo: {
@@ -580,12 +588,22 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         agendaPunkter: oppdaterteAgendaPunkter
       };
 
+      console.log('Lagrer gjennomføringsdata med status:', gjennomforingsData.gjennomforingsStatus);
+
       // Oppdater hovedstate
       setDeltakere(deltakereStatus);
       setAgendaPunkter(oppdaterteAgendaPunkter);
 
       const success = await lagreMote(true, gjennomforingsData);
+      
       if (success) {
+        // Oppdater moteInfo også slik at den inneholder de nye gjennomforingsstatus-verdiene
+        moteInfo.gjennomforingsStatus = {
+          statusOppnadd: currentStatusOppnadd,
+          nyDato: currentNyDato,
+          mal: moteInfo.mal || ''
+        };
+        
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
         return true;
@@ -620,12 +638,21 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     });
 
     // Sjekk om det er endringer i møtestatus
-    const originalStatusOppnadd = moteInfo.gjennomforingsStatus?.statusOppnadd || null;
+    const originalStatusOppnadd = moteInfo.gjennomforingsStatus?.statusOppnadd || '';
     const originalNyDato = moteInfo.gjennomforingsStatus?.nyDato || '';
     
+    const currentStatusOppnadd = statusOppnadd || '';
+    const currentNyDato = nyDato || '';
+    
     const harStatusEndringer = 
-      statusOppnadd !== originalStatusOppnadd || 
-      nyDato !== originalNyDato;
+      currentStatusOppnadd !== originalStatusOppnadd || 
+      currentNyDato !== originalNyDato;
+
+    console.log('Status sammenligning:', { 
+      original: { status: originalStatusOppnadd, dato: originalNyDato },
+      current: { status: currentStatusOppnadd, dato: currentNyDato },
+      harEndringer: harStatusEndringer
+    });
 
     const harEndringer = harDeltakerEndringer || harAgendaEndringer || harStatusEndringer;
     console.log('Har endringer:', { 
@@ -765,8 +792,16 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
   // Legg til en useEffect for å oppdatere status når moteInfo endres
   useEffect(() => {
     if (moteInfo.gjennomforingsStatus) {
-      setStatusOppnadd(moteInfo.gjennomforingsStatus.statusOppnadd);
-      setNyDato(moteInfo.gjennomforingsStatus.nyDato || '');
+      const savedStatusOppnadd = moteInfo.gjennomforingsStatus.statusOppnadd || '';
+      const savedNyDato = moteInfo.gjennomforingsStatus.nyDato || '';
+      
+      console.log('Oppdaterer status fra moteInfo:', { 
+        statusOppnadd: savedStatusOppnadd, 
+        nyDato: savedNyDato 
+      });
+      
+      setStatusOppnadd(savedStatusOppnadd);
+      setNyDato(savedNyDato);
     }
   }, [moteInfo]);
 
