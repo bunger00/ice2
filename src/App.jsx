@@ -92,8 +92,8 @@ function App() {
         return false;
       }
 
-      const moteRef = doc(db, 'moter', moteInfo.id);
-      
+        const moteRef = doc(db, 'moter', moteInfo.id);
+        
       let oppdatertData = {};
       
       if (erGjennomforing && gjennomforingsData) {

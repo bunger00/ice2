@@ -327,7 +327,7 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
 
         // Agendatabell
         const agendaHeaders = ['Tid', 'Varighet', 'Agendapunkt', 'Ansvarlig'];
-        const agendaColWidths = [70, 70, 280, 100];
+        const agendaColWidths = [50, 60, 300, 110];
         const agendaTableWidth = sum(agendaColWidths);
         const baseRowHeight = 25;
         
@@ -347,7 +347,16 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
         agendaHeaders.forEach((header, i) => {
           pdf.setFont(undefined, 'bold');
           pdf.setTextColor(0, 0, 0);
-          pdf.text(header, xPos + 10, currentY + 20);
+          
+          // Midtstill overskrifter for Tid og Varighet
+          if (i < 2) {
+            const headerWidth = pdf.getTextWidth(header);
+            const centerPos = xPos + (agendaColWidths[i] / 2) - (headerWidth / 2);
+            pdf.text(header, centerPos, currentY + 20);
+          } else {
+            pdf.text(header, xPos + 10, currentY + 20);
+          }
+          
           xPos += agendaColWidths[i];
         });
         
@@ -365,21 +374,42 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
           
           const agendapunktLinjer = pdf.splitTextToSize(punkt.punkt || '', 270);
           const textHeight = agendapunktLinjer.length * 12;
-          const rowHeight = Math.max(baseRowHeight, textHeight + 10);
-
+          
           // Tegn celleinnhold
           pdf.setFont(undefined, 'normal');
-          pdf.text(beregnTidspunkt(index), 50, currentY + 15);
-          pdf.text(`${punkt.varighet} min`, 120, currentY + 15);
+          
+          // Midtstill Tid
+          const tidTekst = beregnTidspunkt(index);
+          const tidTekstWidth = pdf.getTextWidth(tidTekst);
+          const tidMidtpunkt = 40 + (agendaColWidths[0] / 2) - (tidTekstWidth / 2);
+          pdf.text(tidTekst, tidMidtpunkt, currentY + 15);
+          
+          // Midtstill Varighet
+          const varighetTekst = `${punkt.varighet} min`;
+          const varighetTekstWidth = pdf.getTextWidth(varighetTekst);
+          const varighetMidtpunkt = 40 + agendaColWidths[0] + (agendaColWidths[1] / 2) - (varighetTekstWidth / 2);
+          pdf.text(varighetTekst, varighetMidtpunkt, currentY + 15);
           
           agendapunktLinjer.forEach((linje, i) => {
             if (currentY + 15 + (i * 12) > pageHeight - marginBottom) {
               checkNewPage(baseRowHeight, agendaHeaders, agendaColWidths, 'agenda');
             }
-            pdf.text(linje, 200, currentY + 15 + (i * 12));
+            pdf.text(linje, 190, currentY + 15 + (i * 12));
           });
           
-          pdf.text(punkt.ansvarlig || '', 470, currentY + 15);
+          // Wrap ansvarlig-tekst hvis for lang
+          const ansvarligLinjer = pdf.splitTextToSize(punkt.ansvarlig || '', 100);
+          ansvarligLinjer.forEach((linje, i) => {
+            if (currentY + 15 + (i * 12) > pageHeight - marginBottom) {
+              checkNewPage(baseRowHeight, agendaHeaders, agendaColWidths, 'agenda');
+            }
+            pdf.text(linje, 460, currentY + 15 + (i * 12));
+          });
+          
+          // Beregn total høyde for raden basert på både agendapunkt og ansvarlig
+          const ansvarligTextHeight = ansvarligLinjer.length * 12;
+          const maxTextHeight = Math.max(textHeight, ansvarligTextHeight);
+          const rowHeight = Math.max(baseRowHeight, maxTextHeight + 10);
           
           currentY += rowHeight;
 
@@ -405,8 +435,18 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
 
         // Møteslutt (flytt litt ned)
         currentY += 5;
-        pdf.text(beregnSluttTid(), 50, currentY + 15);
-        pdf.text('Møteslutt', 120, currentY + 15);
+        
+        // Midtstill tid for møteslutt
+        const sluttTekst = beregnSluttTid();
+        const sluttTekstWidth = pdf.getTextWidth(sluttTekst);
+        const sluttTidMidtpunkt = 40 + (agendaColWidths[0] / 2) - (sluttTekstWidth / 2);
+        pdf.text(sluttTekst, sluttTidMidtpunkt, currentY + 15);
+        
+        // Midtstill "Møteslutt" tekst
+        const motesluttTekst = 'Møteslutt';
+        const motesluttTekstWidth = pdf.getTextWidth(motesluttTekst);
+        const motesluttMidtpunkt = 40 + agendaColWidths[0] + (agendaColWidths[1] / 2) - (motesluttTekstWidth / 2);
+        pdf.text(motesluttTekst, motesluttMidtpunkt, currentY + 15);
       }
 
       // Optimaliser output

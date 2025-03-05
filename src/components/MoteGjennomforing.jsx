@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Clock, ArrowLeft, Check, Calendar, Image, X, Save, Printer, FileDown, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Plus } from 'lucide-react';
 import MoteReferatPrintView from './MoteReferatPrintView';
 import Toast from './Toast';
 import ConfirmDialog from './ConfirmDialog';
+import DrawingEditor from './DrawingEditor';
 
 // Legg til en ny AksjonDialog komponent
 const AksjonDialog = ({ isOpen, onClose, onSave, deltakere }) => {
@@ -359,7 +361,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
             data: e.target.result,
             timestamp: new Date().toISOString(),
             navn: `Skjermbilde ${oppdaterteAgendaPunkter[index].vedlegg.length + 1}`,
-            id: Math.random().toString(36).substring(2, 15)
+            id: Math.random().toString(36).substring(2, 15),
+            strokes: [] // Initialiser med et tomt strokes-array
           });
           setAgendaStatus(oppdaterteAgendaPunkter);
         };
@@ -375,7 +378,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     setAgendaStatus(oppdaterteAgendaPunkter);
   };
 
-  const visVedlegg = (vedlegg) => {
+  const visVedlegg = (vedlegg, agendaIndex, vedleggIndex) => {
     // Opprett en modal eller dialog for å vise bildet
     const modal = document.createElement('div');
     modal.style.position = 'fixed';
@@ -388,15 +391,119 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     modal.style.justifyContent = 'center';
     modal.style.alignItems = 'center';
     modal.style.zIndex = '1000';
-    modal.onclick = () => document.body.removeChild(modal);
-
-    const img = document.createElement('img');
-    img.src = vedlegg.data;
-    img.style.maxWidth = '90%';
-    img.style.maxHeight = '90%';
-    img.style.objectFit = 'contain';
     
-    modal.appendChild(img);
+    // Endrer onclick til å bare lukke modalen hvis klikket er utenfor innholdet
+    modal.onclick = (e) => {
+      if (e.target === modal) document.body.removeChild(modal);
+    };
+
+    // Opprett en container for innholdet
+    const container = document.createElement('div');
+    container.style.backgroundColor = 'white';
+    container.style.padding = '20px';
+    container.style.borderRadius = '8px';
+    container.style.position = 'relative';
+    container.style.maxWidth = '90%';
+    container.style.maxHeight = '90%';
+    container.style.overflow = 'auto';
+    
+    // Opprett en tittel
+    const title = document.createElement('h3');
+    title.textContent = 'Vedlegg: ' + vedlegg.navn;
+    title.style.marginTop = '0';
+    title.style.marginBottom = '15px';
+    
+    // Opprett knapper i en verktøylinje
+    const toolbar = document.createElement('div');
+    toolbar.style.display = 'flex';
+    toolbar.style.marginBottom = '15px';
+    toolbar.style.gap = '10px';
+    
+    // Lukke-knapp
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Lukk';
+    closeButton.style.padding = '5px 10px';
+    closeButton.style.backgroundColor = '#f0f0f0';
+    closeButton.style.border = '1px solid #ccc';
+    closeButton.style.borderRadius = '4px';
+    closeButton.style.marginLeft = 'auto';
+    closeButton.style.cursor = 'pointer';
+    closeButton.onclick = () => document.body.removeChild(modal);
+    
+    // Rediger-knapp (kun for bilder)
+    if (vedlegg.type === 'image') {
+      const editButton = document.createElement('button');
+      editButton.textContent = 'Tegn på bildet';
+      editButton.style.padding = '5px 10px';
+      editButton.style.backgroundColor = '#4CAF50';
+      editButton.style.color = 'white';
+      editButton.style.border = 'none';
+      editButton.style.borderRadius = '4px';
+      editButton.style.cursor = 'pointer';
+      
+      editButton.onclick = () => {
+        // Fjern eksisterende innhold
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
+        }
+        
+        // Mount the DrawingEditor React component
+        const drawingRoot = document.createElement('div');
+        container.appendChild(drawingRoot);
+        
+        // Use ReactDOM to render the component
+        const onSaveDrawing = (newImageData, strokes) => {
+          // Oppdater vedlegget med det redigerte bildet og strekene
+          const oppdaterteAgendaPunkter = [...agendaStatus];
+          oppdaterteAgendaPunkter[agendaIndex].vedlegg[vedleggIndex].data = newImageData;
+          // Lagre streker separat
+          oppdaterteAgendaPunkter[agendaIndex].vedlegg[vedleggIndex].strokes = strokes;
+          setAgendaStatus(oppdaterteAgendaPunkter);
+        };
+        
+        const onCloseDrawing = () => {
+          document.body.removeChild(modal);
+        };
+        
+        // Hent eventuelle eksisterende streker
+        const initialStrokes = vedlegg.strokes || [];
+        
+        ReactDOM.render(
+          <DrawingEditor 
+            imageData={vedlegg.data}
+            initialStrokes={initialStrokes}
+            onSave={onSaveDrawing} 
+            onClose={onCloseDrawing} 
+          />, 
+          drawingRoot
+        );
+      };
+      
+      toolbar.appendChild(editButton);
+    }
+    
+    toolbar.appendChild(closeButton);
+    
+    // Legg til bilde eller annet innhold
+    const content = document.createElement('div');
+    if (vedlegg.type === 'image') {
+      const img = document.createElement('img');
+      img.src = vedlegg.data;
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '70vh';
+      img.style.objectFit = 'contain';
+      content.appendChild(img);
+    } else {
+      const p = document.createElement('p');
+      p.textContent = 'Ikke-bilde vedlegg';
+      content.appendChild(p);
+    }
+    
+    // Bygg opp DOM-strukturen
+    container.appendChild(title);
+    container.appendChild(toolbar);
+    container.appendChild(content);
+    modal.appendChild(container);
     document.body.appendChild(modal);
   };
 
@@ -863,11 +970,11 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                     <div className="flex items-center justify-between gap-4">
                       {/* Venstre side: Tid og agendapunkt */}
                       <div className="flex items-center gap-8 flex-1">
-                        {/* Planlagt tid */}
+                    {/* Planlagt tid */}
                         <div className="flex flex-col items-center min-w-[100px] pl-2">
                           <span className="text-xl font-medium text-gray-900">{getPlanlagtStartTid(index)}</span>
                           <span className="text-sm text-gray-500">({punkt.varighet} min)</span>
-                        </div>
+                      </div>
 
                         {/* Agendapunkt og ansvarlig */}
                         <div className="flex-1">
@@ -876,11 +983,11 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                             Ansvarlig: {punkt.ansvarlig}
                           </div>
                         </div>
-                      </div>
+                    </div>
 
                       {/* Høyre side: Faktisk tid og handlingsknapper */}
                       <div className="flex items-center gap-6">
-                        {/* Faktisk tid */}
+                    {/* Faktisk tid */}
                         {punkt.startTid && (
                           <div className="flex items-center gap-2">
                             <span className="text-gray-500 text-sm">Faktisk start:</span>
@@ -890,15 +997,15 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                 minute: '2-digit' 
                               })}
                             </span>
-                            {punkt.tidBrukt && (
+                          {punkt.tidBrukt && (
                               <>
                                 <span className="text-gray-500 text-sm ml-4">Faktisk varighet:</span>
                                 <span className={`text-sm font-medium ${punkt.tidBrukt > punkt.varighet ? 'text-red-500' : 'text-green-500'}`}>
-                                  {punkt.tidBrukt} min
+                              {punkt.tidBrukt} min
                                 </span>
-                              </>
-                            )}
-                          </div>
+                        </>
+                      )}
+                    </div>
                         )}
 
                         {/* Handlingsknapper */}
@@ -938,8 +1045,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                           </div>
                         )}
                       </div>
+                      </div>
                     </div>
-                  </div>
 
                   {/* Hovedinnhold */}
                   <div className="p-8 bg-white">
@@ -951,36 +1058,36 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                           Kommentar
                         </label>
                         <div className="relative flex-1">
-                          <textarea
+                        <textarea
                             placeholder="Skriv kommentar... (Ctrl+V for å lime inn skjermbilde)"
-                            value={punkt.kommentar}
-                            onChange={(e) => handleAgendaKommentar(index, e.target.value)}
-                            onPaste={(e) => !isLocked && handlePasteImage(index, e)}
-                            disabled={isLocked}
+                          value={punkt.kommentar}
+                          onChange={(e) => handleAgendaKommentar(index, e.target.value)}
+                          onPaste={(e) => !isLocked && handlePasteImage(index, e)}
+                          disabled={isLocked}
                             className={`w-full border border-gray-200 rounded-xl p-4 min-h-[120px] text-gray-700 placeholder-gray-400 ${
                               isLocked ? 'bg-gray-50' : 'focus:ring-2 focus:ring-blue-100 focus:border-blue-300'
                             }`}
                             rows="3"
                           />
                           <div className="absolute right-4 bottom-4 text-gray-400">
-                            <Image size={16} />
-                          </div>
+                          <Image size={16} />
                         </div>
+                      </div>
 
                         {/* Vedlegg */}
-                        {punkt.vedlegg.length > 0 && (
+                      {punkt.vedlegg.length > 0 && (
                           <div className="mt-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Vedlegg
                             </label>
                             <div className="flex flex-wrap gap-2">
-                              {punkt.vedlegg.map((vedlegg, vedleggIndex) => (
-                                <div
+                          {punkt.vedlegg.map((vedlegg, vedleggIndex) => (
+                            <div
                                   key={vedlegg.id}
                                   className="relative group bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-all"
-                                >
-                                  <button
-                                    onClick={() => visVedlegg(vedlegg)}
+                            >
+                              <button
+                                onClick={(e) => visVedlegg(vedlegg, index, vedleggIndex)}
                                     className="w-full flex flex-col items-start gap-1 px-3 py-2"
                                   >
                                     <div className="flex items-center gap-2">
@@ -1006,21 +1113,21 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                         minute: '2-digit'
                                       })}
                                     </div>
-                                  </button>
+                              </button>
                                   {!isLocked && (
-                                    <button
-                                      onClick={() => slettVedlegg(index, vedleggIndex)}
+                              <button
+                                onClick={() => slettVedlegg(index, vedleggIndex)}
                                       className="absolute right-1 top-1 text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-50"
-                                    >
+                              >
                                       <X size={14} />
-                                    </button>
+                              </button>
                                   )}
-                                </div>
-                              ))}
                             </div>
-                          </div>
-                        )}
-                      </div>
+                          ))}
+                            </div>
+                        </div>
+                      )}
+                    </div>
 
                       {/* Høyre kolonne: Aksjoner */}
                       <div className="flex flex-col">
@@ -1029,13 +1136,13 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                             Aksjoner
                           </label>
                           {!isLocked && (
-                            <button
+                          <button
                               onClick={() => handleAddAksjon(index)}
                               className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200"
                             >
                               <Plus size={16} />
                               <span className="text-sm font-medium">Legg til aksjon</span>
-                            </button>
+                          </button>
                           )}
                         </div>
 
@@ -1061,12 +1168,12 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                     </div>
                                   </div>
                                   {!isLocked && (
-                                    <button
+                          <button
                                       onClick={() => handleDeleteAksjon(index, aksjonIndex)}
                                       className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-50"
                                     >
                                       <X size={14} />
-                                    </button>
+                          </button>
                                   )}
                                 </div>
                               </div>
@@ -1128,8 +1235,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                   className={`flex items-center gap-2 px-6 py-3 rounded-md border transition-colors ${
                     isLocked ? 'opacity-50 cursor-not-allowed' : ''
                   } ${
-                    statusOppnadd === 'ikke_oppnadd' 
-                      ? 'bg-red-500 text-white border-red-500' 
+                        statusOppnadd === 'ikke_oppnadd' 
+                          ? 'bg-red-500 text-white border-red-500' 
                       : 'bg-white border-gray-300 hover:border-red-500'
                   }`}
                 >
@@ -1183,4 +1290,4 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
   );
 }
 
-export default MoteGjennomforing;
+export default MoteGjennomforing; 
