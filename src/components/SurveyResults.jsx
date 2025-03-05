@@ -52,22 +52,27 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     const fetchMoteInfo = async () => {
       try {
         if (!effectiveMoteId) {
+          console.error('Ingen møte-ID funnet for resultatsiden');
           setError('Ingen møte-ID funnet');
           setLoading(false);
           return;
         }
 
+        console.log('Henter møteinfo for resultatsiden, ID:', effectiveMoteId);
         const moteRef = doc(db, 'moter', effectiveMoteId);
         const moteSnap = await getDoc(moteRef);
 
         if (moteSnap.exists()) {
-          setMoteInfo(moteSnap.data());
+          const data = moteSnap.data();
+          console.log('Møtedata hentet for resultatsiden:', data.tema);
+          setMoteInfo(data);
         } else {
+          console.error('Møtet ble ikke funnet for resultatsiden med ID:', effectiveMoteId);
           setError('Møtet ble ikke funnet');
         }
       } catch (err) {
-        console.error('Feil ved henting av møtedata:', err);
-        setError('Det oppstod en feil ved henting av møteinformasjon');
+        console.error('Feil ved henting av møtedata for resultatsiden:', err);
+        setError(`Det oppstod en feil ved henting av møteinformasjon: ${err.message}`);
       }
     };
 
@@ -79,6 +84,7 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     if (!effectiveMoteId) return;
 
     setLoading(true);
+    console.log('Setter opp lytter for surveys med moteId:', effectiveMoteId);
 
     const surveysRef = collection(db, 'surveys');
     const surveysQuery = query(surveysRef, where('moteId', '==', effectiveMoteId));
@@ -90,26 +96,32 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
           ...doc.data()
         }));
         
+        console.log(`Mottok ${results.length} surveyresultater i sanntid`);
         setSurveyResults(results);
         setLoading(false);
       } catch (err) {
         console.error('Feil ved henting av undersøkelsesdata:', err);
-        setError('Det oppstod en feil ved henting av evalueringsresultater');
+        setError(`Det oppstod en feil ved henting av evalueringsresultater: ${err.message}`);
         setLoading(false);
       }
     }, (err) => {
       console.error('Lyttefeil:', err);
-      setError('Det oppstod en feil ved lytting til evalueringsresultater');
+      setError(`Det oppstod en feil ved lytting til evalueringsresultater: ${err.message}`);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('Rydder opp lytter for surveys');
+      unsubscribe();
+    };
   }, [effectiveMoteId]);
 
   // Beregn gjennomsnitt og forbered diagramdata
   useEffect(() => {
     if (surveyResults.length === 0) return;
 
+    console.log('Oppdaterer diagramdata basert på', surveyResults.length, 'svar');
+    
     // Beregn gjennomsnitt for hver spørsmålstype
     const averageRatings = {
       preparedRating: 0,
@@ -131,6 +143,8 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
       averageRatings.effectiveRating = +(averageRatings.effectiveRating / count).toFixed(1);
       averageRatings.contributionRating = +(averageRatings.contributionRating / count).toFixed(1);
     }
+
+    console.log('Beregnede gjennomsnitt:', averageRatings);
 
     // Opprett diagramdata
     const data = {
@@ -247,6 +261,14 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
             <h2 className="text-xl font-semibold">Feil</h2>
           </div>
           <p className="text-gray-700 text-center">{error}</p>
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Prøv igjen
+            </button>
+          </div>
         </div>
       </div>
     );

@@ -1178,6 +1178,16 @@ function App() {
           )
         } 
       />
+      
+      {/* Ruter for spørreundersøkelse */}
+      <Route 
+        path="/survey/:moteId" 
+        element={<SurveyForm />} 
+      />
+      <Route 
+        path="/survey-results/:moteId" 
+        element={isAuthenticated ? <SurveyResults /> : <Navigate to="/login" />} 
+      />
     </Routes>
   );
 }
