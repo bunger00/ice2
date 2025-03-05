@@ -805,6 +805,20 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     }
   }, [moteInfo]);
 
+  // Legg til en useEffect som automatisk låser opp når komponenten lastes
+  useEffect(() => {
+    // Hvis feltene er låst, lås dem opp automatisk
+    if (isLocked) {
+      console.log('Låser opp feltene automatisk ved oppstart');
+      // Kort forsinkelse for å sikre at komponenten er ferdig lastet
+      const timer = setTimeout(() => {
+        setIsLocked(false);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
