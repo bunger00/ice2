@@ -4,16 +4,6 @@ import { collection, query, where, onSnapshot, doc, getDoc, getDocs } from 'fire
 import { db, auth } from '../firebase';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 
-// Deklarasjon av variabler for Chart.js komponenter
-let Chart;
-let CategoryScale;
-let LinearScale;
-let BarElement;
-let Title;
-let Tooltip;
-let Legend;
-let Bar;
-
 const SurveyResults = ({ passedMoteId, onClose }) => {
   const { moteId: urlMoteId } = useParams();
   const [effectiveMoteId, setEffectiveMoteId] = useState(passedMoteId || urlMoteId);
@@ -22,78 +12,13 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
-  const [chartComponents, setChartComponents] = useState({
-    loaded: false,
-    error: false
+  
+  // State for gauge-stil data
+  const [gaugeData, setGaugeData] = useState({
+    prepared: { value: 0, percentage: 0 },
+    effective: { value: 0, percentage: 0 },
+    contribution: { value: 0, percentage: 0 }
   });
-  const [chartData, setChartData] = useState({
-    labels: [],
-    datasets: []
-  });
-
-  // Last inn Chart.js komponenter
-  useEffect(() => {
-    const loadChartComponents = async () => {
-      try {
-        // Importer Chart.js moduler
-        const ChartModule = await import('chart.js');
-        const ReactChartjs2 = await import('react-chartjs-2');
-        
-        // Tildel til variabler
-        Chart = ChartModule.Chart;
-        CategoryScale = ChartModule.CategoryScale;
-        LinearScale = ChartModule.LinearScale;
-        BarElement = ChartModule.BarElement;
-        Title = ChartModule.Title;
-        Tooltip = ChartModule.Tooltip;
-        Legend = ChartModule.Legend;
-        Bar = ReactChartjs2.Bar;
-        
-        // Registrer Chart.js komponenter
-        Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-        console.log('Chart.js moduler ble lastet vellykket');
-        
-        setChartComponents({
-          loaded: true,
-          error: false
-        });
-      } catch (error) {
-        console.error('Kunne ikke laste Chart.js:', error);
-        setChartComponents({
-          loaded: false,
-          error: true
-        });
-      }
-    };
-    
-    loadChartComponents();
-  }, []);
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Møteevalueringsresultater',
-        font: {
-          size: 16
-        }
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        max: 5,
-        ticks: {
-          stepSize: 1
-        }
-      }
-    },
-  };
 
   // Lytt til autentiseringsendringer
   useEffect(() => {
@@ -104,6 +29,22 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     
     return () => unsubscribe();
   }, []);
+
+  // Funksjon for anonym autentisering
+  const ensureAuthentication = async () => {
+    if (!user) {
+      try {
+        console.log('Starter anonym autentisering for resultatsiden...');
+        const anonymousAuth = await signInAnonymously(auth);
+        console.log('Anonym autentisering vellykket for resultatsiden. Bruker-ID:', anonymousAuth.user.uid);
+        return anonymousAuth.user;
+      } catch (authError) {
+        console.error('Kunne ikke logge inn anonymt for resultatsiden:', authError);
+        return null;
+      }
+    }
+    return user;
+  };
 
   // Hent møteinformasjon
   useEffect(() => {
@@ -136,22 +77,6 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
 
     fetchMoteInfo();
   }, [effectiveMoteId]);
-
-  // Funksjon for anonym autentisering
-  const ensureAuthentication = async () => {
-    if (!user) {
-      try {
-        console.log('Starter anonym autentisering for resultatsiden...');
-        const anonymousAuth = await signInAnonymously(auth);
-        console.log('Anonym autentisering vellykket for resultatsiden. Bruker-ID:', anonymousAuth.user.uid);
-        return anonymousAuth.user;
-      } catch (authError) {
-        console.error('Kunne ikke logge inn anonymt for resultatsiden:', authError);
-        return null;
-      }
-    }
-    return user;
-  };
 
   // Lytt til endringer i spørreundersøkelsesresultater i sanntid
   useEffect(() => {
@@ -231,56 +156,10 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
           percentage: (contributionAvg / 5) * 100
         }
       });
-      
-      // Fortsett å sette opp data for bar chart for kompabilitet
-      if (!Bar || !Chart) {
-        console.error('Chart.js komponenter mangler');
-        setChartComponents({
-          loaded: false,
-          error: true
-        });
-        return;
-      }
-      
-      const data = {
-        labels: ['Forberedelse', 'Effektivitet', 'Bidrag'],
-        datasets: [{
-          label: 'Gjennomsnittlig vurdering',
-          data: [preparedAvg, effectiveAvg, contributionAvg],
-          backgroundColor: [
-            'rgba(54, 162, 235, 0.7)',
-            'rgba(75, 192, 192, 0.7)',
-            'rgba(153, 102, 255, 0.7)'
-          ],
-          borderColor: [
-            'rgb(54, 162, 235)',
-            'rgb(75, 192, 192)',
-            'rgb(153, 102, 255)'
-          ],
-          borderWidth: 1
-        }]
-      };
-      
-      setChartData(data);
-      setChartComponents({
-        loaded: true,
-        error: false
-      });
     } catch (err) {
       console.error('Feil ved oppdatering av diagramdata:', err);
-      setChartComponents({
-        loaded: false,
-        error: true
-      });
     }
   }, [surveyResults]);
-
-  // State for gauge-stil data
-  const [gaugeData, setGaugeData] = useState({
-    prepared: { value: 0, percentage: 0 },
-    effective: { value: 0, percentage: 0 },
-    contribution: { value: 0, percentage: 0 }
-  });
 
   // Gauge Chart Component
   const GaugeChart = ({ title, data }) => (
@@ -335,7 +214,7 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     </div>
   );
 
-  // Renderingsfunksjon for resultattabellen (fallback når diagram ikke fungerer)
+  // Renderingsfunksjon for resultattabellen
   const renderResultTable = () => (
     <div className="overflow-x-auto">
       <table className="min-w-full border-collapse">
@@ -363,7 +242,6 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     </div>
   );
 
-  // Renderingsfunksjon for modal eller fullside
   const renderContent = () => (
     <div className="bg-white shadow-md rounded-lg p-6 mb-6 max-w-4xl w-full mx-auto">
       {onClose && (
@@ -400,38 +278,17 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
             <p className="text-sm text-gray-500">{surveyResults.length} svar mottatt</p>
           </div>
           
-          {/* Ny gauge style visning */}
+          {/* Gauge style visning */}
           <div className="mb-8 py-4">
             <GaugeChart title="Hvor godt var møtet forberedt?" data={gaugeData.prepared} />
             <GaugeChart title="Hvor effektivt var møtet?" data={gaugeData.effective} />
             <GaugeChart title="Hvor godt bidro deltakerne?" data={gaugeData.contribution} />
           </div>
           
-          {chartComponents.error ? (
-            <>
-              <div className="text-amber-600 mb-4 text-center text-sm p-2 bg-amber-50 rounded">
-                <p>Kunne ikke laste diagram-komponenten.</p>
-                <p>Viser resultater i tabellform i stedet.</p>
-              </div>
-              {renderResultTable()}
-            </>
-          ) : (
-            <>
-              {/* Original bar chart (skjult) */}
-              <div className="hidden">
-                {chartComponents.loaded && Bar && (
-                  <div className="relative h-80">
-                    <Bar data={chartData} options={chartOptions} />
-                  </div>
-                )}
-              </div>
-              
-              <div className="mt-8">
-                <h4 className="text-md font-medium mb-2 text-gray-700">Detaljerte resultater</h4>
-                {renderResultTable()}
-              </div>
-            </>
-          )}
+          <div className="mt-8">
+            <h4 className="text-md font-medium mb-2 text-gray-700">Detaljerte resultater</h4>
+            {renderResultTable()}
+          </div>
         </div>
       )}
     </div>
@@ -470,6 +327,6 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
   }
 
   return renderContent();
-};
+}
 
 export default SurveyResults; 
