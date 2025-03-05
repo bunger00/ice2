@@ -33,5 +33,12 @@ service cloud.firestore {
     match /versjoner/{versjonId} {
       allow read, write: if request.auth != null;
     }
+    
+    // Spørreundersøkelser - tillat alle operasjoner
+    match /surveys/{surveyId} {
+      // Tillat lese og skrive tilgang til alle
+      // Dette er for å muliggjøre anonym tilbakemelding og visning av resultater
+      allow read, write: if true;
+    }
   }
 } 

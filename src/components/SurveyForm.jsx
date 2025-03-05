@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 // Fjern avhengigheten til rc-slider helt
 // import Slider from 'rc-slider';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, getDoc, collection, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 // Custom Slider-komponent basert på standard HTML input
 const CustomSlider = ({ min, max, step, value, onChange }) => {
@@ -37,12 +38,23 @@ const SurveyForm = () => {
   const [error, setError] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [user, setUser] = useState(null);
   
   const [answers, setAnswers] = useState({
     preparedRating: 3,
     effectiveRating: 3,
     contributionRating: 3
   });
+
+  // Lytt til autentiseringsendringer
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      console.log("Autentiseringsstatus:", currentUser ? "Pålogget" : "Ikke pålogget");
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const fetchMoteInfo = async () => {
@@ -104,18 +116,22 @@ const SurveyForm = () => {
         preparedRating: answers.preparedRating,
         effectiveRating: answers.effectiveRating,
         contributionRating: answers.contributionRating,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        // Legg til bruker-ID hvis tilgjengelig
+        userId: user ? user.uid : 'anonym'
       };
 
       console.log('Sender data til Firestore:', JSON.stringify(surveyData, (key, value) => 
         key === 'timestamp' ? 'serverTimestamp()' : value
       ));
 
-      // Lagre i Firestore
-      const surveysRef = collection(db, 'surveys');
-      const docRef = await addDoc(surveysRef, surveyData);
+      // Bruk setDoc med auto-generert ID for å unngå problemer med tillatelser
+      const surveyId = `${moteId}_${Date.now()}`;
+      const surveyRef = doc(db, 'surveys', surveyId);
       
-      console.log('Svar lagret med dokument-ID:', docRef.id);
+      await setDoc(surveyRef, surveyData);
+      
+      console.log('Svar lagret med dokument-ID:', surveyId);
       
       // Vis bekreftelse
       setSubmitted(true);

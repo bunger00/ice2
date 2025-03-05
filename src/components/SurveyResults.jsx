@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
-// Dynamisk import av Chart.js for å unngå byggefeil
+// Deklarasjon av variabler for Chart.js komponenter
 let Chart;
 let CategoryScale;
 let LinearScale;
@@ -13,41 +14,60 @@ let Tooltip;
 let Legend;
 let Bar;
 
-// Wrapper rundt Chart.js import for å håndtere feil
-try {
-  // Denne importen vil nå håndteres på et sikkert vis
-  const ChartModule = await import('chart.js');
-  const ReactChartjs2 = await import('react-chartjs-2');
-  
-  Chart = ChartModule.Chart;
-  CategoryScale = ChartModule.CategoryScale;
-  LinearScale = ChartModule.LinearScale;
-  BarElement = ChartModule.BarElement;
-  Title = ChartModule.Title;
-  Tooltip = ChartModule.Tooltip;
-  Legend = ChartModule.Legend;
-  Bar = ReactChartjs2.Bar;
-  
-  // Registrer Chart.js komponenter hvis importene lyktes
-  Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
-  console.log('Chart.js moduler ble lastet vellykket');
-} catch (error) {
-  console.error('Kunne ikke laste Chart.js:', error);
-}
-
 const SurveyResults = ({ passedMoteId, onClose }) => {
   const { moteId: urlMoteId } = useParams();
-  const effectiveMoteId = passedMoteId || urlMoteId;
-  
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [chartError, setChartError] = useState(false);
+  const [effectiveMoteId, setEffectiveMoteId] = useState(passedMoteId || urlMoteId);
   const [moteInfo, setMoteInfo] = useState(null);
   const [surveyResults, setSurveyResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+  const [chartComponents, setChartComponents] = useState({
+    loaded: false,
+    error: false
+  });
   const [chartData, setChartData] = useState({
     labels: [],
     datasets: []
   });
+
+  // Last inn Chart.js komponenter
+  useEffect(() => {
+    const loadChartComponents = async () => {
+      try {
+        // Importer Chart.js moduler
+        const ChartModule = await import('chart.js');
+        const ReactChartjs2 = await import('react-chartjs-2');
+        
+        // Tildel til variabler
+        Chart = ChartModule.Chart;
+        CategoryScale = ChartModule.CategoryScale;
+        LinearScale = ChartModule.LinearScale;
+        BarElement = ChartModule.BarElement;
+        Title = ChartModule.Title;
+        Tooltip = ChartModule.Tooltip;
+        Legend = ChartModule.Legend;
+        Bar = ReactChartjs2.Bar;
+        
+        // Registrer Chart.js komponenter
+        Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+        console.log('Chart.js moduler ble lastet vellykket');
+        
+        setChartComponents({
+          loaded: true,
+          error: false
+        });
+      } catch (error) {
+        console.error('Kunne ikke laste Chart.js:', error);
+        setChartComponents({
+          loaded: false,
+          error: true
+        });
+      }
+    };
+    
+    loadChartComponents();
+  }, []);
 
   const chartOptions = {
     responsive: true,
@@ -74,6 +94,16 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
       }
     },
   };
+
+  // Lytt til autentiseringsendringer
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      console.log("Autentiseringsstatus for resultatsiden:", currentUser ? "Pålogget" : "Ikke pålogget");
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   // Hent møteinformasjon
   useEffect(() => {
@@ -114,17 +144,19 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     setLoading(true);
     console.log('Setter opp lytter for surveys med moteId:', effectiveMoteId);
 
-    const surveysRef = collection(db, 'surveys');
-    const surveysQuery = query(surveysRef, where('moteId', '==', effectiveMoteId));
-
-    const unsubscribe = onSnapshot(surveysQuery, (snapshot) => {
+    // Bruk getDocs i stedet for onSnapshot for å unngå tilgangsproblemer
+    const fetchSurveyResults = async () => {
       try {
+        const surveysRef = collection(db, 'surveys');
+        const surveysQuery = query(surveysRef, where('moteId', '==', effectiveMoteId));
+        const snapshot = await getDocs(surveysQuery);
+        
         const results = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
         
-        console.log(`Mottok ${results.length} surveyresultater i sanntid`);
+        console.log(`Hentet ${results.length} surveyresultater`);
         setSurveyResults(results);
         setLoading(false);
       } catch (err) {
@@ -132,15 +164,16 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
         setError(`Det oppstod en feil ved henting av evalueringsresultater: ${err.message}`);
         setLoading(false);
       }
-    }, (err) => {
-      console.error('Lyttefeil:', err);
-      setError(`Det oppstod en feil ved lytting til evalueringsresultater: ${err.message}`);
-      setLoading(false);
-    });
+    };
 
+    fetchSurveyResults();
+
+    // Oppdater resultatene hvert 10. sekund for å simulere sanntidsoppdateringer
+    const interval = setInterval(fetchSurveyResults, 10000);
+    
     return () => {
-      console.log('Rydder opp lytter for surveys');
-      unsubscribe();
+      console.log('Rydder opp intervall for surveys');
+      clearInterval(interval);
     };
   }, [effectiveMoteId]);
 
@@ -151,7 +184,10 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     try {
       if (!Bar || !Chart) {
         console.error('Chart.js komponenter mangler');
-        setChartError(true);
+        setChartComponents({
+          loaded: false,
+          error: true
+        });
         return;
       }
 
@@ -208,36 +244,40 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
       };
 
       setChartData(data);
-      setChartError(false);
+      setChartComponents({
+        loaded: true,
+        error: false
+      });
     } catch (err) {
       console.error('Feil ved oppdatering av diagramdata:', err);
-      setChartError(true);
+      setChartComponents({
+        loaded: false,
+        error: true
+      });
     }
   }, [surveyResults]);
 
   // Renderingsfunksjon for resultattabellen (fallback når diagram ikke fungerer)
   const renderResultTable = () => (
-    <div className="overflow-hidden bg-white shadow-md rounded-lg">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Kategori
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Gjennomsnitt (1-5)
-            </th>
+    <div className="overflow-x-auto">
+      <table className="min-w-full border-collapse">
+        <thead>
+          <tr className="bg-blue-100">
+            <th className="border border-gray-300 px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Nr.</th>
+            <th className="border border-gray-300 px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Dato</th>
+            <th className="border border-gray-300 px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Forberedt</th>
+            <th className="border border-gray-300 px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Effektivt</th>
+            <th className="border border-gray-300 px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Bidrag</th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {chartData.labels.map((label, index) => (
-            <tr key={label}>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-gray-900">{label}</div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900 font-bold">{chartData.datasets[0].data[index]}</div>
-              </td>
+        <tbody>
+          {surveyResults.map((result, index) => (
+            <tr key={result.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+              <td className="border border-gray-300 px-3 py-2 text-sm">{index + 1}</td>
+              <td className="border border-gray-300 px-3 py-2 text-sm">{result.timestamp ? new Date(result.timestamp.seconds * 1000).toLocaleString() : 'Ukjent'}</td>
+              <td className="border border-gray-300 px-3 py-2 text-sm">{result.preparedRating}</td>
+              <td className="border border-gray-300 px-3 py-2 text-sm">{result.effectiveRating}</td>
+              <td className="border border-gray-300 px-3 py-2 text-sm">{result.contributionRating}</td>
             </tr>
           ))}
         </tbody>
@@ -247,85 +287,78 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
 
   // Renderingsfunksjon for modal eller fullside
   const renderContent = () => (
-    <div className={onClose ? "p-4" : "min-h-screen bg-gray-50 p-4"}>
-      <div className={`${onClose ? "w-full" : "max-w-4xl mx-auto"} bg-white rounded-lg shadow-md overflow-hidden`}>
-        {/* Header */}
-        <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
-          <h1 className="text-xl font-bold">Møteevaluering - Resultater</h1>
-          {onClose && (
-            <button 
-              onClick={onClose}
-              className="text-white hover:text-gray-200 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
+    <div className="bg-white shadow-md rounded-lg p-6 mb-6 max-w-4xl w-full mx-auto">
+      {onClose && (
+        <div className="text-right mb-4">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        
-        {moteInfo && (
-          <div className="p-2 bg-blue-50 text-center border-b border-blue-100">
-            <p className="text-sm font-medium text-blue-800">{moteInfo.tema}</p>
-            <p className="text-xs text-blue-600">{moteInfo.dato}</p>
+      )}
+      
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold mb-2 text-gray-800">{moteInfo?.tema || 'Møteevaluering'}</h2>
+        <p className="text-gray-600">
+          {moteInfo?.dato ? new Date(moteInfo.dato).toLocaleDateString() : 'Ukjent dato'}
+        </p>
+      </div>
+      
+      {surveyResults.length === 0 ? (
+        <div className="text-center p-8 bg-gray-50 rounded-lg">
+          <div className="text-gray-500 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
           </div>
-        )}
-        
-        {/* Results */}
-        <div className="p-4">
-          {surveyResults.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">
-                Ingen evalueringsresultater ennå. Resultater vil vises her når deltakere begynner å svare.
-              </p>
-            </div>
+          <h3 className="text-lg font-medium text-gray-700">Ingen svar ennå</h3>
+          <p className="text-sm text-gray-500 mt-1">Det har ikke kommet inn noen svar på denne evalueringen ennå.</p>
+        </div>
+      ) : (
+        <div>
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-2 text-gray-700">Evalueringsresultater</h3>
+            <p className="text-sm text-gray-500">{surveyResults.length} svar mottatt</p>
+          </div>
+          
+          {chartComponents.error ? (
+            <>
+              <div className="text-amber-600 mb-4 text-center text-sm p-2 bg-amber-50 rounded">
+                <p>Kunne ikke laste diagram-komponenten.</p>
+                <p>Viser resultater i tabellform i stedet.</p>
+              </div>
+              {renderResultTable()}
+            </>
           ) : (
             <>
-              <div className="mb-4">
-                <p className="text-sm text-gray-500 text-center">
-                  Viser resultater fra {surveyResults.length} {surveyResults.length === 1 ? 'deltaker' : 'deltakere'}
-                </p>
-              </div>
-              
-              {chartError ? (
-                <>
-                  <div className="text-amber-600 mb-4 text-center text-sm p-2 bg-amber-50 rounded">
-                    <p>Kunne ikke laste diagramvisning. Viser resultater i tabellformat i stedet.</p>
-                  </div>
-                  {renderResultTable()}
-                </>
+              {chartComponents.loaded && Bar ? (
+                <div className="relative h-80">
+                  <Bar data={chartData} options={chartOptions} />
+                </div>
               ) : (
-                <>
-                  <div className="h-80 w-full">
-                    {Bar && <Bar options={chartOptions} data={chartData} />}
-                  </div>
-                  
-                  <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {chartData.labels.map((label, index) => (
-                      <div key={label} className="bg-gray-50 p-4 rounded-lg">
-                        <h3 className="font-medium text-gray-700">{label}</h3>
-                        <div className="mt-2 text-3xl font-bold text-blue-600">
-                          {chartData.datasets[0].data[index]}
-                          <span className="text-lg text-gray-500 ml-1">/5</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
+                <div className="flex justify-center items-center h-80">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                </div>
               )}
+              
+              <div className="mt-8">
+                <h4 className="text-md font-medium mb-2 text-gray-700">Detaljerte resultater</h4>
+                {renderResultTable()}
+              </div>
             </>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 
-  if (loading && !chartData.datasets.length) {
+  if (loading) {
     return (
-      <div className={onClose ? "p-4" : "min-h-screen flex items-center justify-center bg-gray-50 p-4"}>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Laster evalueringsresultater...</p>
+          <p className="mt-4 text-gray-600">Laster inn evalueringsresultater...</p>
         </div>
       </div>
     );
@@ -333,20 +366,17 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
 
   if (error) {
     return (
-      <div className={onClose ? "p-4" : "min-h-screen flex items-center justify-center bg-gray-50 p-4"}>
-        <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
+        <div className="bg-white shadow-md rounded-lg p-6 max-w-md w-full">
           <div className="text-center text-red-500 mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <h2 className="text-xl font-semibold">Feil</h2>
+            <h2 className="text-xl font-semibold">Feil ved lasting av evalueringsresultater</h2>
           </div>
-          <p className="text-gray-700 text-center">{error}</p>
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
+          <p className="text-gray-700 mb-4">{error}</p>
+          <div className="text-center">
+            <button onClick={() => window.location.reload()} className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md transition-colors duration-300">
               Prøv igjen
             </button>
           </div>
