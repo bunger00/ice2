@@ -40,16 +40,27 @@ const useAutoSave = (moteId, data, type) => {
           oppdatering.sistOppdatert = serverTimestamp();
           await updateDoc(moteRef, oppdatering);
 
-          const historikkRef = collection(db, 'moter', moteId, 'historikk');
-          await addDoc(historikkRef, {
+          // Lag et historikkobjekt i samme format som versjonshistorikk
+          const historikkData = {
             tidspunkt: serverTimestamp(),
             endretAv: auth.currentUser?.email || 'Ukjent',
             type,
-            endringer: data
-          });
+          };
+          
+          // Legg til endringer i samme format som versjonshistorikk
+          if (type === 'moteInfo') {
+            historikkData.endringer = { moteInfo: { ...data } };
+          } else if (type === 'deltakere') {
+            historikkData.endringer = { deltakere: [...data] };
+          } else if (type === 'agenda') {
+            historikkData.endringer = { agendaPunkter: [...data] };
+          }
+
+          const historikkRef = collection(db, 'moter', moteId, 'historikk');
+          await addDoc(historikkRef, historikkData);
 
           setHarEndringer(false);
-          console.log(`Automatisk lagring av ${type} fullført`);
+          console.log(`Automatisk lagring av ${type} fullført`, historikkData);
         } catch (error) {
           console.error('Feil ved automatisk lagring:', error);
         }
