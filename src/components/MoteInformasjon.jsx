@@ -10,13 +10,19 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    // Sett starttid til 09:00 og dagens dato som innkallingsdato når komponenten lastes
-    if (moteInfo.startTid !== '09:00' || !moteInfo.innkallingsDato) {
-      setMoteInfo({ 
-        ...moteInfo, 
+    // Sett starttid til 09:00 og dagens dato som innkallingsdato BARE hvis komponenten opprettes første gang
+    if (!moteInfo.startTid && !moteInfo.innkallingsDato) {
+      setMoteInfo(prevState => ({ 
+        ...prevState, 
         startTid: '09:00',
-        innkallingsDato: !moteInfo.innkallingsDato ? new Date().toISOString().split('T')[0] : moteInfo.innkallingsDato
-      });
+        innkallingsDato: new Date().toISOString().split('T')[0]
+      }));
+    } else if (!moteInfo.innkallingsDato) {
+      // Hvis starttid er satt, men ikke innkallingsDato, oppdater bare innkallingsDato
+      setMoteInfo(prevState => ({ 
+        ...prevState, 
+        innkallingsDato: new Date().toISOString().split('T')[0]
+      }));
     }
   }, []);
 
@@ -86,9 +92,9 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
     // Hvis det blir 60 minutter, juster timen
     if (roundedMinutes === 60) {
       const newHours = (parseInt(hours) + 1).toString().padStart(2, '0');
-      setMoteInfo({ ...moteInfo, startTid: `${newHours}:00` });
+      setMoteInfo(prevState => ({ ...prevState, startTid: `${newHours}:00` }));
     } else {
-      setMoteInfo({ ...moteInfo, startTid: `${hours}:${formattedMinutes}` });
+      setMoteInfo(prevState => ({ ...prevState, startTid: `${hours}:${formattedMinutes}` }));
     }
   };
 
@@ -98,7 +104,7 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
     localStorage.setItem('showInnkallingsDato', newValue);
     
     if (!newValue) {
-      setMoteInfo({ ...moteInfo, innkallingsDato: '' });
+      setMoteInfo(prevState => ({ ...prevState, innkallingsDato: '' }));
     }
   };
 
@@ -192,9 +198,9 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
                 Starttid
               </label>
               <select
-                value={moteInfo.startTid}
+                value={moteInfo.startTid || '09:00'}
                 onChange={handleTimeChange}
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 {Array.from({ length: 9 }).map((_, hourIndex) => { // 9 timer fra 8 til 16
                   const hour = hourIndex + 8; // Starter på 8
@@ -208,7 +214,7 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
                       </option>
                     );
                   });
-                })}
+                }).flat()}
               </select>
             </div>
           </div>
