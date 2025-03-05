@@ -19,6 +19,8 @@ import { collection, addDoc, getDocs, query, where, updateDoc, doc, deleteDoc, s
 import Toast from './components/Toast';
 import VersjonsHistorikk from './components/VersjonsHistorikk';
 import DeltMote from './components/DeltMote';
+import SurveyForm from './components/SurveyForm';
+import SurveyResults from './components/SurveyResults';
 
 function App() {
   const [moteInfo, setMoteInfo] = useState({
@@ -570,16 +572,16 @@ function App() {
   // Funksjon for å lagre ny versjon i Firestore
   const lagreVersjon = async () => {
     try {
-      if (!moteInfo.id) return; // Ikke lagre versjoner for møter som ikke er lagret
+      if (!moteInfo.id) return; // Ikke lagre versjoner for umøter som ikke er lagret
 
       const versjonData = {
         moteId: moteInfo.id,
         tidspunkt: serverTimestamp(),
-        endretAv: moteInfo.fasilitator || auth.currentUser?.email || 'Ukjent',
-        endringer: {
-          moteInfo: { ...moteInfo },
-          deltakere: [...deltakere],
-          agendaPunkter: [...agendaPunkter]
+        endretAv: moteInfo.fasilitator || 'Ukjent',
+        data: {
+          moteInfo,
+          deltakere,
+          agendaPunkter
         }
       };
 
@@ -588,8 +590,6 @@ function App() {
 
       // Hent oppdaterte versjoner
       await hentVersjoner(moteInfo.id);
-      
-      console.log('Versjon lagret:', versjonData);
     } catch (error) {
       console.error('Feil ved lagring av versjon:', error);
     }
@@ -634,59 +634,20 @@ function App() {
     if (!moteInfo.id || !versjon) return;
 
     try {
-      // Oppdater lokale states først med dataene fra versjonen
-      if (versjon.endringer) {
-        if (versjon.endringer.moteInfo) {
-          setMoteInfo({
-            ...moteInfo, // Behold ID og andre felt som ikke er i versjonen
-            ...versjon.endringer.moteInfo
-          });
-        }
-        
-        if (versjon.endringer.deltakere) {
-          setDeltakere(versjon.endringer.deltakere);
-        }
-        
-        if (versjon.endringer.agendaPunkter) {
-          setAgendaPunkter(versjon.endringer.agendaPunkter);
-        }
-      }
-
-      // Deretter oppdater databasen
       const moteRef = doc(db, 'moter', moteInfo.id);
-      const oppdateringer = {
+      await updateDoc(moteRef, {
+        tema: versjon.endringer.tema,
+        deltakere: versjon.endringer.deltakere,
+        agendaPunkter: versjon.endringer.agendaPunkter,
         sistOppdatert: serverTimestamp()
-      };
-      
-      if (versjon.endringer.moteInfo) {
-        oppdateringer.tema = versjon.endringer.moteInfo.tema || moteInfo.tema;
-        oppdateringer.dato = versjon.endringer.moteInfo.dato || moteInfo.dato;
-        oppdateringer.startTid = versjon.endringer.moteInfo.startTid || moteInfo.startTid;
-        oppdateringer.innkallingsDato = versjon.endringer.moteInfo.innkallingsDato || moteInfo.innkallingsDato;
-        oppdateringer.eier = versjon.endringer.moteInfo.eier || moteInfo.eier;
-        oppdateringer.fasilitator = versjon.endringer.moteInfo.fasilitator || moteInfo.fasilitator;
-        oppdateringer.referent = versjon.endringer.moteInfo.referent || moteInfo.referent;
-        oppdateringer.hensikt = versjon.endringer.moteInfo.hensikt || moteInfo.hensikt;
-        oppdateringer.mal = versjon.endringer.moteInfo.mal || moteInfo.mal;
-      }
-      
-      if (versjon.endringer.deltakere) {
-        oppdateringer.deltakere = versjon.endringer.deltakere;
-      }
-      
-      if (versjon.endringer.agendaPunkter) {
-        oppdateringer.agendaPunkter = versjon.endringer.agendaPunkter;
-      }
-      
-      await updateDoc(moteRef, oppdateringer);
+      });
 
-      // Vis bekreftelse
       setToastMessage('Tidligere versjon gjenopprettet');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (error) {
       console.error('Feil ved gjenoppretting:', error);
-      alert('Kunne ikke gjenopprette versjonen: ' + error.message);
+      alert('Kunne ikke gjenopprette versjonen');
     }
   };
 
@@ -991,8 +952,10 @@ function App() {
         )
       } />
       
-      {/* Delt møte route - ingen auth sjekk */}
+      {/* Offentlige ruter - ingen auth-sjekk */}
       <Route path="/delt/:moteId/:token" element={<DeltMote />} />
+      <Route path="/survey/:moteId" element={<SurveyForm />} />
+      <Route path="/survey-results/:moteId" element={<SurveyResults />} />
       
       {/* Beskyttet hovedrute */}
       <Route
@@ -1128,10 +1091,10 @@ function App() {
                       </div>
                       
                       <div className="ml-3 sm:ml-6">
-                        <VersjonsHistorikk 
-                          versjoner={versjoner}
-                          onVelgVersjon={gjenopprettVersjon}
-                        />
+                      <VersjonsHistorikk 
+                        versjoner={versjoner}
+                        onVelgVersjon={gjenopprettVersjon}
+                      />
                       </div>
                     </div>
                   </div>

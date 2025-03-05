@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Clock, ArrowLeft, Check, Calendar, Image, X, Save, Printer, FileDown, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Plus } from 'lucide-react';
+import { Clock, ArrowLeft, Check, Calendar, Image, X, Save, Printer, FileDown, Lock, Unlock, ChevronDown, ChevronUp, AlertCircle, Plus, QrCode, BarChart } from 'lucide-react';
 import MoteReferatPrintView from './MoteReferatPrintView';
 import Toast from './Toast';
 import ConfirmDialog from './ConfirmDialog';
 import DrawingEditor from './DrawingEditor';
+import QRCodeModal from './QRCodeModal';
+import SurveyResults from './SurveyResults';
 
 // Legg til en ny AksjonDialog komponent
 const AksjonDialog = ({ isOpen, onClose, onSave, deltakere }) => {
@@ -181,6 +183,9 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
 
   const [activeAksjonIndex, setActiveAksjonIndex] = useState(null);
   const [showAksjonDialog, setShowAksjonDialog] = useState(false);
+
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [showSurveyResults, setShowSurveyResults] = useState(false);
 
   // Oppdater klokken hvert sekund
   useEffect(() => {
@@ -804,12 +809,34 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     setAgendaStatus(oppdaterteAgendaPunkter);
   };
 
+  const handleShowQRCode = () => {
+    setShowQRCode(true);
+  };
+
+  const handleShowSurveyResults = () => {
+    setShowSurveyResults(true);
+  };
+
   return (
     <div className={`min-h-screen bg-gray-100 py-4 sm:py-8 ${isLocked ? 'opacity-75' : ''}`}>
       {showToast && (
         <Toast 
           message="Møtet er lagret!" 
           onClose={() => setShowToast(false)} 
+        />
+      )}
+      
+      {showQRCode && (
+        <QRCodeModal
+          moteId={moteInfo.id}
+          onClose={() => setShowQRCode(false)}
+        />
+      )}
+      
+      {showSurveyResults && (
+        <SurveyResults
+          passedMoteId={moteInfo.id}
+          onClose={() => setShowSurveyResults(false)}
         />
       )}
       
@@ -827,14 +854,32 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
       <div className="max-w-5xl mx-auto px-3 sm:px-4">
         <div className="flex flex-wrap justify-between items-center mb-4 sm:mb-6 gap-2">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Møtegjennomføring</h1>
-          <button
-            onClick={toggleLock}
-            className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-gray-700 hover:text-gray-900 transition-colors"
-            title={isLocked ? "Lås opp møtereferatet" : "Lås møtereferatet"}
-          >
-            {isLocked ? <Lock size={18} /> : <Unlock size={18} />}
-            <span className="hidden sm:inline">{isLocked ? "Lås opp" : "Lås"}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleShowQRCode}
+              className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-white text-gray-700 text-xs sm:text-sm rounded-md border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors shadow-sm"
+              title="Del spørreundersøkelse"
+            >
+              <QrCode size={16} />
+              <span className="hidden sm:inline">Del spørreundersøkelse</span>
+            </button>
+            <button
+              onClick={handleShowSurveyResults}
+              className="flex items-center gap-1 px-3 py-1.5 sm:px-4 sm:py-2 bg-white text-gray-700 text-xs sm:text-sm rounded-md border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors shadow-sm"
+              title="Se evaluering"
+            >
+              <BarChart size={16} />
+              <span className="hidden sm:inline">Se evaluering</span>
+            </button>
+            <button
+              onClick={toggleLock}
+              className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-gray-700 hover:text-gray-900 transition-colors"
+              title={isLocked ? "Lås opp møtereferatet" : "Lås møtereferatet"}
+            >
+              {isLocked ? <Lock size={18} /> : <Unlock size={18} />}
+              <span className="hidden sm:inline">{isLocked ? "Lås opp" : "Lås"}</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
@@ -897,52 +942,52 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                   <div className="col-span-4 sm:col-span-4 text-sm sm:text-base font-bold">Forberedelser</div>
                   <div className="col-span-2 sm:col-span-2 text-xs sm:text-sm font-bold text-center">Utført</div>
                   <div className="col-span-2 sm:col-span-2 text-xs sm:text-sm font-bold text-center">Oppmøte</div>
-                </div>
-                <div>
-                  {deltakereStatus.map((deltaker, index) => (
-                    <div 
-                      key={index} 
+            </div>
+            <div>
+              {deltakereStatus.map((deltaker, index) => (
+                <div 
+                  key={index} 
                       className={`grid grid-cols-12 gap-2 sm:gap-4 p-2 sm:p-4 items-center border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
-                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                      }`}
-                    >
+                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                  }`}
+                >
                       <div className="col-span-4 sm:col-span-4 flex flex-col">
                         <span className="text-sm sm:text-base font-bold text-gray-800 truncate">{deltaker.navn}</span>
                         <span className="text-xs sm:text-sm text-gray-500 truncate">{deltaker.fagFunksjon}</span>
-                      </div>
+                  </div>
                       <div className="col-span-4 sm:col-span-4 text-xs sm:text-sm text-gray-600 line-clamp-2">
-                        {deltaker.forberedelser}
-                      </div>
+                    {deltaker.forberedelser}
+                  </div>
                       <div className="col-span-2 sm:col-span-2 flex justify-center">
-                        <button
-                          onClick={() => !isLocked && syklusDeltakerStatus(index, 'utfortStatus')}
-                          disabled={isLocked}
+                    <button
+                      onClick={() => !isLocked && syklusDeltakerStatus(index, 'utfortStatus')}
+                      disabled={isLocked}
                           className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 transition-colors shadow-sm hover:shadow ${
-                            isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                          } ${
-                            deltaker.utfortStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
-                            deltaker.utfortStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
-                            'bg-white border-gray-300 hover:border-gray-400'
-                          }`}
-                        />
-                      </div>
+                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                      } ${
+                        deltaker.utfortStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
+                        deltaker.utfortStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
+                        'bg-white border-gray-300 hover:border-gray-400'
+                      }`}
+                    />
+                  </div>
                       <div className="col-span-2 sm:col-span-2 flex justify-center">
-                        <button
-                          onClick={() => !isLocked && syklusDeltakerStatus(index, 'oppmoteStatus')}
-                          disabled={isLocked}
+                    <button
+                      onClick={() => !isLocked && syklusDeltakerStatus(index, 'oppmoteStatus')}
+                      disabled={isLocked}
                           className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 transition-colors shadow-sm hover:shadow ${
-                            isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                          } ${
-                            deltaker.oppmoteStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
-                            deltaker.oppmoteStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
-                            'bg-white border-gray-300 hover:border-gray-400'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                      } ${
+                        deltaker.oppmoteStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
+                        deltaker.oppmoteStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
+                        'bg-white border-gray-300 hover:border-gray-400'
+                      }`}
+                    />
+                  </div>
                 </div>
-              </div>
+              ))}
+            </div>
+          </div>
             </div>
           )}
         </div>
