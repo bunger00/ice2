@@ -18,7 +18,7 @@ export default defineConfig({
       include: [/node_modules/]
     },
     rollupOptions: {
-      external: ['react-qr-code']
+      external: []
     },
     outDir: 'dist'
   }
