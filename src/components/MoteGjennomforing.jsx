@@ -245,8 +245,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
           mal: moteInfo.mal || '',
           erGjennomfort: true,
           gjennomforingsStatus: {
-            statusOppnadd: statusOppnadd || null,
-            nyDato: nyDato || null,
+            statusOppnadd: statusOppnadd || '',
+            nyDato: nyDato || '',
             mal: moteInfo.mal || ''
           },
           statusInfo: {
@@ -560,8 +560,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         mal: moteInfo.mal || '',
         erGjennomfort: true,
         gjennomforingsStatus: {
-          statusOppnadd: statusOppnadd || null,
-          nyDato: nyDato || null,
+          statusOppnadd: statusOppnadd || '',
+          nyDato: nyDato || '',
           mal: moteInfo.mal || ''
         },
         statusInfo: {

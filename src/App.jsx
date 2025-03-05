@@ -135,11 +135,11 @@ function App() {
           hensikt: String(gjennomforingsData.hensikt || ''),
           mal: String(gjennomforingsData.mal || ''),
           erGjennomfort: true,
-          gjennomforingsStatus: gjennomforingsData.gjennomforingsStatus ? {
-            statusOppnadd: String(gjennomforingsData.gjennomforingsStatus.statusOppnadd || ''),
-            nyDato: String(gjennomforingsData.gjennomforingsStatus.nyDato || ''),
-            mal: String(gjennomforingsData.gjennomforingsStatus.mal || '')
-          } : null,
+          gjennomforingsStatus: {
+            statusOppnadd: String(gjennomforingsData.gjennomforingsStatus?.statusOppnadd || ''),
+            nyDato: String(gjennomforingsData.gjennomforingsStatus?.nyDato || ''),
+            mal: String(gjennomforingsData.gjennomforingsStatus?.mal || '')
+          },
           statusInfo: {
             fullfortePunkter: Number(gjennomforingsData.statusInfo?.fullfortePunkter || 0),
             gjenstaendePunkter: Number(gjennomforingsData.statusInfo?.gjenstaendePunkter || 0),
