@@ -487,11 +487,11 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     // Legg til bilde eller annet innhold
     const content = document.createElement('div');
     if (vedlegg.type === 'image') {
-      const img = document.createElement('img');
-      img.src = vedlegg.data;
+    const img = document.createElement('img');
+    img.src = vedlegg.data;
       img.style.maxWidth = '100%';
       img.style.maxHeight = '70vh';
-      img.style.objectFit = 'contain';
+    img.style.objectFit = 'contain';
       content.appendChild(img);
     } else {
       const p = document.createElement('p');
@@ -805,7 +805,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
   };
 
   return (
-    <div className={`min-h-screen bg-gray-100 py-8 ${isLocked ? 'opacity-75' : ''}`}>
+    <div className={`min-h-screen bg-gray-100 py-4 sm:py-8 ${isLocked ? 'opacity-75' : ''}`}>
       {showToast && (
         <Toast 
           message="Møtet er lagret!" 
@@ -824,52 +824,53 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         message="Det ser ut som du har ulagrede endringer. Ønsker du å lagre endringene før du går tilbake til agendaen?"
       />
 
-      <div className="max-w-5xl mx-auto px-4">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Møtegjennomføring</h1>
+      <div className="max-w-5xl mx-auto px-3 sm:px-4">
+        <div className="flex flex-wrap justify-between items-center mb-4 sm:mb-6 gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Møtegjennomføring</h1>
           <button
             onClick={toggleLock}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-gray-700 hover:text-gray-900 transition-colors"
             title={isLocked ? "Lås opp møtereferatet" : "Lås møtereferatet"}
           >
-            {isLocked ? <Lock size={20} /> : <Unlock size={20} />}
-            {isLocked ? "Lås opp" : "Lås"}
+            {isLocked ? <Lock size={18} /> : <Unlock size={18} />}
+            <span className="hidden sm:inline">{isLocked ? "Lås opp" : "Lås"}</span>
           </button>
         </div>
 
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
           <button
             onClick={handleBack}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
           >
-            <ArrowLeft size={20} />
-            Tilbake til møteagenda
+            <ArrowLeft size={18} />
+            <span className="text-sm sm:text-base">Tilbake til møteagenda</span>
           </button>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <MoteReferatPrintView 
               moteInfo={moteInfo}
               deltakere={deltakereStatus}
               agendaPunkter={agendaStatus}
-              buttonClassName="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm rounded-md border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+              buttonClassName="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-white text-gray-700 text-xs sm:text-sm rounded-md border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"
             >
               <FileDown size={14} />
-              Eksporter møtereferat
+              <span className="hidden xs:inline">Eksporter</span> 
+              <span className="hidden sm:inline">møtereferat</span>
             </MoteReferatPrintView>
           </div>
         </div>
 
         {/* Klokke og møteinfo */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="text-center mb-4">
-            <div className="text-6xl font-bold mb-2">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="text-center mb-2 sm:mb-4">
+            <div className="text-4xl sm:text-6xl font-bold mb-2">
               {currentTime.toLocaleTimeString('no-NO', { 
                 hour: '2-digit', 
                 minute: '2-digit' 
               })}
             </div>
-            <h1 className="text-2xl font-semibold mb-2">{moteInfo.tema}</h1>
-            <div className="text-lg text-gray-600">
+            <h1 className="text-xl sm:text-2xl font-semibold mb-1 sm:mb-2">{moteInfo.tema}</h1>
+            <div className="text-base sm:text-lg text-gray-600">
               {new Date(moteInfo.dato).toLocaleDateString('no-NO', {
                 year: 'numeric',
                 month: 'long',
@@ -880,403 +881,390 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         </div>
 
         {/* Deltakerliste */}
-        <div className="bg-white rounded-lg shadow-sm mb-6 p-4">
+        <div className="bg-white rounded-lg shadow-sm mb-4 sm:mb-6 p-3 sm:p-4">
           <div 
             className="flex items-center justify-between cursor-pointer"
             onClick={() => toggleSection('deltakere')}
           >
-            <h2 className="text-xl font-semibold">Deltakere</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Deltakere</h2>
             {expandedSections.deltakere ? <ChevronUp /> : <ChevronDown />}
           </div>
           {expandedSections.deltakere && (
-            <div className="mt-4">
-          <div className="border rounded-lg overflow-hidden">
-            <div className="grid grid-cols-12 gap-4 p-4 bg-gray-50 border-b text-gray-800">
-              <div className="col-span-3 text-xl font-bold">Deltaker</div>
-              <div className="col-span-6 text-xl font-bold">Forberedelser</div>
-              <div className="col-span-1.5 text-xl font-bold text-center">Utført</div>
-              <div className="col-span-1.5 text-xl font-bold text-center">Oppmøte</div>
-            </div>
-            <div>
-              {deltakereStatus.map((deltaker, index) => (
-                <div 
-                  key={index} 
-                  className={`grid grid-cols-12 gap-4 p-4 items-center border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
-                    index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                  }`}
-                >
-                  <div className="col-span-3 flex flex-col">
-                    <span className="text-lg font-bold text-gray-800">{deltaker.navn}</span>
-                    <span className="text-sm text-gray-500">{deltaker.fagFunksjon}</span>
-                  </div>
-                  <div className="col-span-6 text-sm text-gray-600">
-                    {deltaker.forberedelser}
-                  </div>
-                  <div className="col-span-1.5 flex justify-center">
-                    <button
-                      onClick={() => !isLocked && syklusDeltakerStatus(index, 'utfortStatus')}
-                      disabled={isLocked}
-                      className={`w-6 h-6 rounded-full border-2 transition-colors shadow-sm hover:shadow ${
-                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                      } ${
-                        deltaker.utfortStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
-                        deltaker.utfortStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
-                        'bg-white border-gray-300 hover:border-gray-400'
-                      }`}
-                    />
-                  </div>
-                  <div className="col-span-1.5 flex justify-center">
-                    <button
-                      onClick={() => !isLocked && syklusDeltakerStatus(index, 'oppmoteStatus')}
-                      disabled={isLocked}
-                      className={`w-6 h-6 rounded-full border-2 transition-colors shadow-sm hover:shadow ${
-                        isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                      } ${
-                        deltaker.oppmoteStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
-                        deltaker.oppmoteStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
-                        'bg-white border-gray-300 hover:border-gray-400'
-                      }`}
-                    />
-                  </div>
+            <div className="mt-3 sm:mt-4 overflow-x-auto">
+              <div className="min-w-full border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-12 gap-2 sm:gap-4 p-2 sm:p-4 bg-gray-50 border-b text-gray-800">
+                  <div className="col-span-4 sm:col-span-3 text-sm sm:text-base font-bold">Deltaker</div>
+                  <div className="col-span-4 sm:col-span-6 text-sm sm:text-base font-bold">Forberedelser</div>
+                  <div className="col-span-2 sm:col-span-1.5 text-xs sm:text-sm font-bold text-center">Utført</div>
+                  <div className="col-span-2 sm:col-span-1.5 text-xs sm:text-sm font-bold text-center">Oppmøte</div>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div>
+                  {deltakereStatus.map((deltaker, index) => (
+                    <div 
+                      key={index} 
+                      className={`grid grid-cols-12 gap-2 sm:gap-4 p-2 sm:p-4 items-center border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
+                        index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                      }`}
+                    >
+                      <div className="col-span-4 sm:col-span-3 flex flex-col">
+                        <span className="text-sm sm:text-base font-bold text-gray-800 truncate">{deltaker.navn}</span>
+                        <span className="text-xs sm:text-sm text-gray-500 truncate">{deltaker.fagFunksjon}</span>
+                      </div>
+                      <div className="col-span-4 sm:col-span-6 text-xs sm:text-sm text-gray-600 line-clamp-2">
+                        {deltaker.forberedelser}
+                      </div>
+                      <div className="col-span-2 sm:col-span-1.5 flex justify-center">
+                        <button
+                          onClick={() => !isLocked && syklusDeltakerStatus(index, 'utfortStatus')}
+                          disabled={isLocked}
+                          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 transition-colors shadow-sm hover:shadow ${
+                            isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                          } ${
+                            deltaker.utfortStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
+                            deltaker.utfortStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
+                            'bg-white border-gray-300 hover:border-gray-400'
+                          }`}
+                        />
+                      </div>
+                      <div className="col-span-2 sm:col-span-1.5 flex justify-center">
+                        <button
+                          onClick={() => !isLocked && syklusDeltakerStatus(index, 'oppmoteStatus')}
+                          disabled={isLocked}
+                          className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 transition-colors shadow-sm hover:shadow ${
+                            isLocked ? 'opacity-50 cursor-not-allowed' : ''
+                          } ${
+                            deltaker.oppmoteStatus === 'green' ? 'bg-green-500 border-green-500 hover:bg-green-600' :
+                            deltaker.oppmoteStatus === 'red' ? 'bg-red-500 border-red-500 hover:bg-red-600' :
+                            'bg-white border-gray-300 hover:border-gray-400'
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
 
         {/* Agenda */}
-        <div className="bg-white rounded-lg shadow-sm mb-6 p-4">
+        <div className="bg-white rounded-lg shadow-sm mb-4 sm:mb-6 p-3 sm:p-4">
           <div 
             className="flex items-center justify-between cursor-pointer"
             onClick={() => toggleSection('agenda')}
           >
-            <h2 className="text-xl font-semibold">Agenda</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Agenda</h2>
             {expandedSections.agenda ? <ChevronUp /> : <ChevronDown />}
           </div>
           {expandedSections.agenda && (
-            <div className="mt-4">
-          <div className="border rounded-lg overflow-hidden">
-            {/* Agenda innhold */}
-            <div className="divide-y">
-              {agendaStatus.map((punkt, index) => (
-                <div
-                  key={punkt.id || index}
-                  className="bg-white rounded-xl shadow-sm overflow-hidden mb-6 transition-all duration-200 hover:shadow-md border border-gray-100"
-                >
-                  {/* Kombinert header med all informasjon */}
-                  <div className="px-4 py-4 bg-gray-100/90">
-                    <div className="flex items-center justify-between gap-4">
-                      {/* Venstre side: Tid og agendapunkt */}
-                      <div className="flex items-center gap-8 flex-1">
-                    {/* Planlagt tid */}
-                        <div className="flex flex-col items-center min-w-[100px] pl-2">
-                          <span className="text-xl font-medium text-gray-900">{getPlanlagtStartTid(index)}</span>
-                          <span className="text-sm text-gray-500">({punkt.varighet} min)</span>
-                      </div>
+            <div className="mt-3 sm:mt-4">
+              <div className="divide-y">
+                {agendaStatus.map((punkt, index) => (
+                  <div
+                    key={punkt.id || index}
+                    className="bg-white rounded-xl shadow-sm overflow-hidden mb-3 sm:mb-6 transition-all duration-200 hover:shadow-md border border-gray-100"
+                  >
+                    {/* Kombinert header med all informasjon */}
+                    <div className="px-3 sm:px-4 py-3 sm:py-4 bg-gray-100/90">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                        {/* Venstre side: Tid og agendapunkt */}
+                        <div className="flex items-center gap-3 sm:gap-8 flex-1">
+                          {/* Planlagt tid */}
+                          <div className="flex flex-col items-center min-w-[60px] sm:min-w-[100px] pl-0 sm:pl-2">
+                            <span className="text-base sm:text-xl font-medium text-gray-900">{getPlanlagtStartTid(index)}</span>
+                            <span className="text-xs sm:text-sm text-gray-500">({punkt.varighet} min)</span>
+                          </div>
 
-                        {/* Agendapunkt og ansvarlig */}
-                        <div className="flex-1">
-                          <h3 className="text-xl font-medium text-gray-900">{punkt.punkt}</h3>
-                          <div className="text-sm text-gray-600">
-                            Ansvarlig: {punkt.ansvarlig}
+                          {/* Agendapunkt og ansvarlig */}
+                          <div className="flex-1">
+                            <h3 className="text-base sm:text-xl font-medium text-gray-900">{punkt.punkt}</h3>
+                            <div className="text-xs sm:text-sm text-gray-600">
+                              Ansvarlig: {punkt.ansvarlig}
+                            </div>
                           </div>
                         </div>
-                    </div>
 
-                      {/* Høyre side: Faktisk tid og handlingsknapper */}
-                      <div className="flex items-center gap-6">
-                    {/* Faktisk tid */}
-                        {punkt.startTid && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500 text-sm">Faktisk start:</span>
-                            <span className="text-lg font-medium text-gray-900">
-                              {new Date(punkt.startTid).toLocaleTimeString('no-NO', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </span>
-                          {punkt.tidBrukt && (
-                              <>
-                                <span className="text-gray-500 text-sm ml-4">Faktisk varighet:</span>
-                                <span className={`text-sm font-medium ${punkt.tidBrukt > punkt.varighet ? 'text-red-500' : 'text-green-500'}`}>
-                              {punkt.tidBrukt} min
-                                </span>
-                        </>
-                      )}
-                    </div>
-                        )}
+                        {/* Høyre side: Faktisk tid og handlingsknapper */}
+                        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-6 mt-2 sm:mt-0">
+                          {/* Faktisk tid */}
+                          {punkt.startTid && (
+                            <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                              <span className="text-gray-500 text-xs sm:text-sm">Faktisk start:</span>
+                              <span className="text-sm sm:text-lg font-medium text-gray-900">
+                                {new Date(punkt.startTid).toLocaleTimeString('no-NO', { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </span>
+                              {punkt.tidBrukt && (
+                                <>
+                                  <span className="text-gray-500 text-xs sm:text-sm ml-2 sm:ml-4">Faktisk varighet:</span>
+                                  <span className={`text-xs sm:text-sm font-medium ${punkt.tidBrukt > punkt.varighet ? 'text-red-500' : 'text-green-500'}`}>
+                                    {punkt.tidBrukt} min
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          )}
 
-                        {/* Handlingsknapper */}
-                        {!punkt.ferdig && (
-                          aktivtPunkt === index ? (
-                            <button
-                              onClick={() => ferdigstillAgendaPunkt(index)}
-                              disabled={isLocked}
-                              className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all duration-200 ${
-                                isLocked 
-                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                  : 'bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-sm'
-                              }`}
-                            >
-                              <Check size={18} />
-                              <span className="font-medium">Ferdig</span>
-                            </button>
-                          ) : !punkt.startTid && aktivtPunkt === null && (
-                            <button
-                              onClick={() => startAgendaPunkt(index)}
-                              disabled={isLocked}
-                              className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all duration-200 ${
-                                isLocked 
-                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                  : 'bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-sm'
-                              }`}
-                            >
-                              <Clock size={18} />
-                              <span className="font-medium">Start</span>
-                            </button>
-                          )
-                        )}
-                        {punkt.ferdig && (
-                          <div className="flex items-center gap-2 text-green-600 bg-green-50 px-5 py-2.5 rounded-full">
-                            <Check size={18} />
-                            <span className="font-medium">Fullført</span>
-                          </div>
-                        )}
-                      </div>
-                      </div>
-                    </div>
-
-                  {/* Hovedinnhold */}
-                  <div className="p-8 bg-white">
-                    {/* Innhold i to kolonner med lik høyde */}
-                    <div className="grid grid-cols-2 gap-12">
-                      {/* Venstre kolonne: Kommentarer og vedlegg */}
-                      <div className="flex flex-col">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Kommentar
-                        </label>
-                        <div className="relative flex-1">
-                        <textarea
-                            placeholder="Skriv kommentar... (Ctrl+V for å lime inn skjermbilde)"
-                          value={punkt.kommentar}
-                          onChange={(e) => handleAgendaKommentar(index, e.target.value)}
-                          onPaste={(e) => !isLocked && handlePasteImage(index, e)}
-                          disabled={isLocked}
-                            className={`w-full border border-gray-200 rounded-xl p-4 min-h-[120px] text-gray-700 placeholder-gray-400 ${
-                              isLocked ? 'bg-gray-50' : 'focus:ring-2 focus:ring-blue-100 focus:border-blue-300'
-                            }`}
-                            rows="3"
-                          />
-                          <div className="absolute right-4 bottom-4 text-gray-400">
-                          <Image size={16} />
-                        </div>
-                      </div>
-
-                        {/* Vedlegg */}
-                      {punkt.vedlegg.length > 0 && (
-                          <div className="mt-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Vedlegg
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                          {punkt.vedlegg.map((vedlegg, vedleggIndex) => (
-                            <div
-                                  key={vedlegg.id}
-                                  className="relative group bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-all"
-                            >
+                          {/* Handlingsknapper */}
+                          {!punkt.ferdig && (
+                            aktivtPunkt === index ? (
                               <button
-                                onClick={(e) => visVedlegg(vedlegg, index, vedleggIndex)}
-                                    className="w-full flex flex-col items-start gap-1 px-3 py-2"
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <Image size={14} className="text-gray-400" />
-                                      {!isLocked ? (
-                                        <input
-                                          type="text"
-                                          value={vedlegg.navn}
-                                          onChange={(e) => handleRenameVedlegg(index, vedleggIndex, e.target.value)}
-                                          className="text-sm text-gray-700 border-none bg-transparent hover:bg-gray-50 focus:ring-1 focus:ring-blue-100 rounded px-1 py-0.5 w-24"
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                      ) : (
-                                        <span className="text-sm text-gray-600">{vedlegg.navn}</span>
-                                      )}
-                                    </div>
-                                    <div className="text-xs text-gray-400">
-                                      {new Date(vedlegg.timestamp).toLocaleString('no-NO', {
-                                        day: '2-digit',
-                                        month: '2-digit',
-                                        year: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                      })}
-                                    </div>
-                              </button>
-                                  {!isLocked && (
-                              <button
-                                onClick={() => slettVedlegg(index, vedleggIndex)}
-                                      className="absolute right-1 top-1 text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-50"
+                                onClick={() => ferdigstillAgendaPunkt(index)}
+                                disabled={isLocked}
+                                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full transition-all duration-200 ${
+                                  isLocked 
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                    : 'bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-sm'
+                                }`}
                               >
-                                      <X size={14} />
+                                <Check size={16} />
+                                <span className="text-sm sm:text-base font-medium">Ferdig</span>
                               </button>
-                                  )}
+                            ) : !punkt.startTid && aktivtPunkt === null && (
+                              <button
+                                onClick={() => startAgendaPunkt(index)}
+                                disabled={isLocked}
+                                className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full transition-all duration-200 ${
+                                  isLocked 
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-sm'
+                                }`}
+                              >
+                                <Clock size={16} />
+                                <span className="text-sm sm:text-base font-medium">Start</span>
+                              </button>
+                            )
+                          )}
+                          {punkt.ferdig && (
+                            <div className="flex items-center gap-1 sm:gap-2 text-green-600 bg-green-50 px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full">
+                              <Check size={16} />
+                              <span className="text-sm sm:text-base font-medium">Fullført</span>
                             </div>
-                          ))}
-                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
 
-                      {/* Høyre kolonne: Aksjoner */}
-                      <div className="flex flex-col">
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            Aksjoner
+                    {/* Hovedinnhold */}
+                    <div className="p-3 sm:p-8 bg-white">
+                      {/* Innhold i to kolonner med lik høyde på desktop, stacking på mobil */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-12">
+                        {/* Venstre kolonne: Kommentarer og vedlegg */}
+                        <div className="flex flex-col">
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                            Kommentar
                           </label>
-                          {!isLocked && (
-                          <button
-                              onClick={() => handleAddAksjon(index)}
-                              className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200"
-                            >
-                              <Plus size={16} />
-                              <span className="text-sm font-medium">Legg til aksjon</span>
-                          </button>
+                          <div className="relative flex-1">
+                            <textarea
+                              placeholder="Skriv kommentar... (Ctrl+V for å lime inn skjermbilde)"
+                              value={punkt.kommentar}
+                              onChange={(e) => handleAgendaKommentar(index, e.target.value)}
+                              onPaste={(e) => !isLocked && handlePasteImage(index, e)}
+                              disabled={isLocked}
+                              className={`w-full border border-gray-200 rounded-xl p-2 sm:p-4 min-h-[100px] sm:min-h-[120px] text-sm sm:text-base text-gray-700 placeholder-gray-400 ${
+                                isLocked ? 'bg-gray-50' : 'focus:ring-2 focus:ring-blue-100 focus:border-blue-300'
+                              }`}
+                              rows="3"
+                            />
+                            <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 text-gray-400">
+                              <Image size={16} />
+                            </div>
+                          </div>
+
+                          {/* Vedlegg */}
+                          {punkt.vedlegg.length > 0 && (
+                            <div className="mt-4 sm:mt-6">
+                              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                                Vedlegg
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {punkt.vedlegg.map((vedlegg, vedleggIndex) => (
+                                  <div
+                                    key={vedlegg.id}
+                                    className="relative group bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-all"
+                                  >
+                                    <button
+                                      onClick={(e) => visVedlegg(vedlegg, index, vedleggIndex)}
+                                      className="w-full flex flex-col items-start gap-1 px-2 sm:px-3 py-1 sm:py-2"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Image size={14} className="text-gray-400" />
+                                        {!isLocked ? (
+                                          <input
+                                            type="text"
+                                            value={vedlegg.navn}
+                                            onChange={(e) => handleRenameVedlegg(index, vedleggIndex, e.target.value)}
+                                            className="text-xs sm:text-sm text-gray-700 border-none bg-transparent hover:bg-gray-50 focus:ring-1 focus:ring-blue-100 rounded px-1 py-0.5 w-[72px] sm:w-24"
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
+                                        ) : (
+                                          <span className="text-xs sm:text-sm text-gray-700">{vedlegg.navn}</span>
+                                        )}
+                                      </div>
+                                      {vedlegg.type === 'image' && (
+                                        <div
+                                          className="mt-1 w-16 h-12 sm:w-20 sm:h-16 rounded bg-cover bg-center border border-gray-100"
+                                          style={{ backgroundImage: `url(${vedlegg.data})` }}
+                                        />
+                                      )}
+                                    </button>
+                                    {!isLocked && (
+                                      <button
+                                        onClick={() => slettVedlegg(index, vedleggIndex)}
+                                        className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
 
-                        <div className="space-y-4">
-                          {punkt.aksjoner?.length > 0 ? (
-                            punkt.aksjoner.map((aksjon, aksjonIndex) => (
-                              <div
-                                key={aksjonIndex}
-                                className="bg-white border border-gray-200 rounded-xl p-3 hover:shadow-sm transition-all"
+                        {/* Høyre kolonne: Aksjoner */}
+                        <div className="flex flex-col">
+                          <div className="flex items-center justify-between mb-2">
+                            <label className="block text-xs sm:text-sm font-medium text-gray-700">
+                              Aksjoner
+                            </label>
+                            {!isLocked && (
+                            <button
+                                onClick={() => handleAddAksjon(index)}
+                                className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200"
                               >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="flex items-start gap-2 mb-1">
-                                      <AlertCircle size={14} className="text-yellow-500 mt-1 flex-shrink-0" />
-                                      <div className="space-y-0.5">
-                                        <p className="font-medium text-gray-900 text-sm">{aksjon.beskrivelse}</p>
-                                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                                          <span>{aksjon.ansvarlig}</span>
-                                          <span>•</span>
-                                          <span>Frist: {new Date(aksjon.frist).toLocaleDateString()}</span>
+                                <Plus size={16} />
+                                <span className="text-sm font-medium">Legg til aksjon</span>
+                            </button>
+                            )}
+                          </div>
+
+                          <div className="space-y-4">
+                            {punkt.aksjoner?.length > 0 ? (
+                              punkt.aksjoner.map((aksjon, aksjonIndex) => (
+                                <div
+                                  key={aksjonIndex}
+                                  className="bg-white border border-gray-200 rounded-xl p-3 hover:shadow-sm transition-all"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-start gap-2 mb-1">
+                                        <AlertCircle size={14} className="text-yellow-500 mt-1 flex-shrink-0" />
+                                        <div className="space-y-0.5">
+                                          <p className="font-medium text-gray-900 text-sm">{aksjon.beskrivelse}</p>
+                                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            <span>{aksjon.ansvarlig}</span>
+                                            <span>•</span>
+                                            <span>Frist: {new Date(aksjon.frist).toLocaleDateString()}</span>
+                                          </div>
                                         </div>
                                       </div>
                                     </div>
+                                    {!isLocked && (
+                            <button
+                                        onClick={() => handleDeleteAksjon(index, aksjonIndex)}
+                                        className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-50"
+                                      >
+                                        <X size={14} />
+                            </button>
+                                    )}
                                   </div>
-                                  {!isLocked && (
-                          <button
-                                      onClick={() => handleDeleteAksjon(index, aksjonIndex)}
-                                      className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-50"
-                                    >
-                                      <X size={14} />
-                          </button>
-                                  )}
                                 </div>
+                              ))
+                            ) : (
+                              <div className="text-center text-gray-500 text-sm">
+                                Ingen aksjoner lagt til
                               </div>
-                            ))
-                          ) : (
-                            <div className="text-center text-gray-500 text-sm">
-                              Ingen aksjoner lagt til
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
 
         {/* Status med oppnådd/ikke oppnådd */}
-        <div className="bg-white rounded-lg shadow-sm mb-6 p-4">
+        <div className="bg-white rounded-lg shadow-sm mb-4 sm:mb-6 p-3 sm:p-4">
           <div 
             className="flex items-center justify-between cursor-pointer"
             onClick={() => toggleSection('status')}
           >
-            <h2 className="text-xl font-semibold">Status</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Status</h2>
             {expandedSections.status ? <ChevronUp /> : <ChevronDown />}
           </div>
           {expandedSections.status && (
             <div className="mt-4">
-          <div className="border rounded-lg overflow-hidden">
-            <div className="p-4 bg-gray-50 border-b">
-              <div className="text-lg font-medium mb-2">Målsetting for møtet:</div>
-              <div className="text-gray-700 mb-4 p-3 bg-white border rounded-md">
-                {moteInfo.mal}
-              </div>
-              <div className="text-lg font-medium mb-2">Oppnådde dere målet med møtet?</div>
-            </div>
-            <div className="p-4">
-              <div className="flex items-center gap-4 mb-4">
-                <button
-                  onClick={() => !isLocked && setStatusOppnadd('oppnadd')}
-                  disabled={isLocked}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-md border transition-colors ${
-                    isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                  } ${
-                    statusOppnadd === 'oppnadd' 
-                      ? 'bg-green-500 text-white border-green-500' 
-                      : 'bg-white border-gray-300 hover:border-green-500'
-                  }`}
-                >
-                  Oppnådd
-                </button>
-                <button
-                  onClick={() => !isLocked && setStatusOppnadd('ikke_oppnadd')}
-                  disabled={isLocked}
-                  className={`flex items-center gap-2 px-6 py-3 rounded-md border transition-colors ${
-                    isLocked ? 'opacity-50 cursor-not-allowed' : ''
-                  } ${
-                        statusOppnadd === 'ikke_oppnadd' 
-                          ? 'bg-red-500 text-white border-red-500' 
-                      : 'bg-white border-gray-300 hover:border-red-500'
-                  }`}
-                >
-                  Ikke oppnådd
-                </button>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+                <div className="text-sm sm:text-base">Ble målsettingen med møtet oppnådd?</div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => !isLocked && setStatusOppnadd('oppnadd')}
+                    disabled={isLocked}
+                    className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border ${
+                      statusOppnadd === 'oppnadd'
+                        ? 'bg-green-50 text-green-600 border-green-200'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    } ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    <Check size={16} className={statusOppnadd === 'oppnadd' ? 'text-green-500' : 'text-gray-400'} />
+                    <span className="text-sm sm:text-base font-medium">Oppnådd</span>
+                  </button>
+                  <button
+                    onClick={() => !isLocked && setStatusOppnadd('ikke_oppnadd')}
+                    disabled={isLocked}
+                    className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border ${
+                      statusOppnadd === 'ikke_oppnadd'
+                        ? 'bg-red-50 text-red-600 border-red-200'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    } ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  >
+                    <X size={16} className={statusOppnadd === 'ikke_oppnadd' ? 'text-red-500' : 'text-gray-400'} />
+                    <span className="text-sm sm:text-base font-medium">Ikke oppnådd</span>
+                  </button>
+                </div>
               </div>
 
               {statusOppnadd === 'ikke_oppnadd' && (
-                <div className="mt-4 flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">Ny dato:</span>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-fadeIn">
+                  <div className="text-sm sm:text-base">Ny dato for oppfølging:</div>
                   <input
                     type="date"
-                    value={nyDato}
-                    onChange={(e) => setNyDato(e.target.value)}
+                    value={nyDato || ''}
+                    onChange={(e) => !isLocked && setNyDato(e.target.value)}
                     disabled={isLocked}
-                    className={`border rounded-md p-2 ${
-                      isLocked ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
+                    className={`px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md w-full sm:w-auto ${
+                      isLocked ? 'bg-gray-50 opacity-60 cursor-not-allowed' : ''
                     }`}
                     min={new Date().toISOString().split('T')[0]}
                   />
                 </div>
               )}
             </div>
-          </div>
-            </div>
           )}
         </div>
 
-        {/* Lagreknapp */}
-        {!isLocked && (
-          <div className="fixed bottom-4 right-4">
-            <button
-              onClick={handleSave}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-            >
-              <Save size={16} />
-              Lagre endringer
-            </button>
-          </div>
-        )}
+        {/* Lagre-knapp */}
+        <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 mb-8">
+          <button
+            onClick={handleSave}
+            disabled={isLocked}
+            className={`px-4 py-2 rounded-md flex items-center justify-center gap-2 ${
+              isLocked
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow'
+            } transition-all duration-200`}
+          >
+            <Save size={16} />
+            <span className="font-medium">Lagre endringer</span>
+          </button>
+        </div>
 
         {/* Legg til AksjonDialog */}
         <AksjonDialog
