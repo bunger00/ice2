@@ -5,7 +5,7 @@ import { jsPDF } from 'jspdf';
 import { format, addMinutes, parse } from 'date-fns';
 
 // Ny komponent for agenda-eksport
-function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
+function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children, iconOnly = false }) {
   const contentRef = useRef();
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportOptions, setExportOptions] = useState({
@@ -354,7 +354,7 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
             const centerPos = xPos + (agendaColWidths[i] / 2) - (headerWidth / 2);
             pdf.text(header, centerPos, currentY + 20);
           } else {
-            pdf.text(header, xPos + 10, currentY + 20);
+          pdf.text(header, xPos + 10, currentY + 20);
           }
           
           xPos += agendaColWidths[i];
@@ -374,7 +374,7 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
           
           const agendapunktLinjer = pdf.splitTextToSize(punkt.punkt || '', 270);
           const textHeight = agendapunktLinjer.length * 12;
-          
+
           // Tegn celleinnhold
           pdf.setFont(undefined, 'normal');
           
@@ -481,15 +481,15 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
     <div className="inline-block agenda-print-view">
       <button
         onClick={() => setShowExportDialog(true)}
-        className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
+        className={iconOnly ? "" : "text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"}
         title="Eksporter agenda"
       >
-        {children || <FileDown size={18} />}
+        {children || <FileDown size={iconOnly ? 16 : 18} />}
       </button>
 
       {showExportDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               Velg innhold for eksport
             </h3>
@@ -538,7 +538,7 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={() => setShowExportDialog(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-md"
+                className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 rounded-md"
               >
                 Avbryt
               </button>
@@ -547,7 +547,7 @@ function AgendaPrintView({ moteInfo, deltakere, agendaPunkter, children }) {
                   handleExport();
                   setShowExportDialog(false);
                 }}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                className="px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
               >
                 Eksporter PDF
               </button>

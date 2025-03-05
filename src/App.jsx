@@ -968,26 +968,35 @@ function App() {
               <div className="bg-white border-b border-gray-100">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                   <div className="flex justify-between items-center h-16">
-                    <div className="flex items-center space-x-8">
+                    <div className="flex items-center space-x-2 sm:space-x-8">
                       <div className="flex items-center">
                         <img 
                           src="/Logolean.png" 
                           alt="ICE Meeting" 
-                          className="h-8 w-auto"
+                          className="h-6 sm:h-8 w-auto"
                         />
-                        <span className="ml-3 text-xl font-light text-gray-900">ICE Meeting</span>
+                        <span className="ml-2 sm:ml-3 text-base sm:text-xl font-light text-gray-900">ICE Meeting</span>
                       </div>
                       <button
                         onClick={nyttMote}
-                        className="inline-flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-full transition-colors duration-200"
+                        className="hidden sm:inline-flex items-center px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm text-blue-600 hover:bg-blue-50 rounded-full transition-colors duration-200"
                       >
-                        <PlusCircle size={18} className="mr-2" />
-                        Nytt møte
+                        <PlusCircle size={16} className="mr-1 sm:mr-2" />
+                        <span className="whitespace-nowrap">Nytt møte</span>
+                      </button>
+                      {/* Mobil Nytt møte-knapp */}
+                      <button
+                        onClick={nyttMote}
+                        className="sm:hidden inline-flex items-center p-1.5 text-blue-600 hover:bg-blue-50 rounded-full transition-colors duration-200"
+                        aria-label="Nytt møte"
+                      >
+                        <PlusCircle size={18} />
                       </button>
                     </div>
                     
-                    <div className="flex items-center space-x-6">
-                      <div className="flex items-end space-x-6 h-8">
+                    <div className="flex items-center">
+                      {/* Desktop verktøylinje */}
+                      <div className="hidden sm:flex items-end space-x-6 h-8">
                         <button 
                           onClick={handleManuellLagring}
                           className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
@@ -1036,10 +1045,53 @@ function App() {
                           </span>
                         </button>
                       </div>
-                      <VersjonsHistorikk 
-                        versjoner={versjoner}
-                        onVelgVersjon={gjenopprettVersjon}
-                      />
+                      
+                      {/* Mobil verktøylinje - kompakt */}
+                      <div className="flex sm:hidden items-center space-x-1.5">
+                        <button 
+                          onClick={handleManuellLagring}
+                          className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
+                          title="Lagre møte"
+                        >
+                          <Save size={18} />
+                        </button>
+                        <button 
+                          onClick={startMote}
+                          className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
+                          title="Start møte"
+                        >
+                          <Play size={18} />
+                        </button>
+                        <button 
+                          onClick={genererDelingsLink}
+                          className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
+                          title="Del møte"
+                        >
+                          <Share size={18} />
+                        </button>
+                        <div className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100">
+                          <AgendaPrintView
+                            moteInfo={moteInfo}
+                            deltakere={deltakere}
+                            agendaPunkter={agendaPunkter}
+                            iconOnly={true}
+                          />
+                        </div>
+                        <button 
+                          onClick={handleLogout}
+                          className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
+                          title="Logg ut"
+                        >
+                          <LogOut size={18} />
+                        </button>
+                      </div>
+                      
+                      <div className="ml-3 sm:ml-6">
+                        <VersjonsHistorikk 
+                          versjoner={versjoner}
+                          onVelgVersjon={gjenopprettVersjon}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
