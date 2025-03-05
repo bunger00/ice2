@@ -893,10 +893,10 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
             <div className="mt-3 sm:mt-4 overflow-x-auto">
               <div className="min-w-full border rounded-lg overflow-hidden">
                 <div className="grid grid-cols-12 gap-2 sm:gap-4 p-2 sm:p-4 bg-gray-50 border-b text-gray-800">
-                  <div className="col-span-4 sm:col-span-3 text-sm sm:text-base font-bold">Deltaker</div>
-                  <div className="col-span-4 sm:col-span-6 text-sm sm:text-base font-bold">Forberedelser</div>
-                  <div className="col-span-2 sm:col-span-1.5 text-xs sm:text-sm font-bold text-center">Utført</div>
-                  <div className="col-span-2 sm:col-span-1.5 text-xs sm:text-sm font-bold text-center">Oppmøte</div>
+                  <div className="col-span-4 sm:col-span-4 text-sm sm:text-base font-bold">Deltaker</div>
+                  <div className="col-span-4 sm:col-span-4 text-sm sm:text-base font-bold">Forberedelser</div>
+                  <div className="col-span-2 sm:col-span-2 text-xs sm:text-sm font-bold text-center">Utført</div>
+                  <div className="col-span-2 sm:col-span-2 text-xs sm:text-sm font-bold text-center">Oppmøte</div>
                 </div>
                 <div>
                   {deltakereStatus.map((deltaker, index) => (
@@ -906,14 +906,14 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       }`}
                     >
-                      <div className="col-span-4 sm:col-span-3 flex flex-col">
+                      <div className="col-span-4 sm:col-span-4 flex flex-col">
                         <span className="text-sm sm:text-base font-bold text-gray-800 truncate">{deltaker.navn}</span>
                         <span className="text-xs sm:text-sm text-gray-500 truncate">{deltaker.fagFunksjon}</span>
                       </div>
-                      <div className="col-span-4 sm:col-span-6 text-xs sm:text-sm text-gray-600 line-clamp-2">
+                      <div className="col-span-4 sm:col-span-4 text-xs sm:text-sm text-gray-600 line-clamp-2">
                         {deltaker.forberedelser}
                       </div>
-                      <div className="col-span-2 sm:col-span-1.5 flex justify-center">
+                      <div className="col-span-2 sm:col-span-2 flex justify-center">
                         <button
                           onClick={() => !isLocked && syklusDeltakerStatus(index, 'utfortStatus')}
                           disabled={isLocked}
@@ -926,7 +926,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                           }`}
                         />
                       </div>
-                      <div className="col-span-2 sm:col-span-1.5 flex justify-center">
+                      <div className="col-span-2 sm:col-span-2 flex justify-center">
                         <button
                           onClick={() => !isLocked && syklusDeltakerStatus(index, 'oppmoteStatus')}
                           disabled={isLocked}
@@ -958,8 +958,8 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
           </div>
           {expandedSections.agenda && (
             <div className="mt-3 sm:mt-4">
-              <div className="divide-y">
-                {agendaStatus.map((punkt, index) => (
+            <div className="divide-y">
+              {agendaStatus.map((punkt, index) => (
                   <div
                     key={punkt.id || index}
                     className="bg-white rounded-xl shadow-sm overflow-hidden mb-3 sm:mb-6 transition-all duration-200 hover:shadow-md border border-gray-100"
@@ -969,11 +969,11 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                         {/* Venstre side: Tid og agendapunkt */}
                         <div className="flex items-center gap-3 sm:gap-8 flex-1">
-                          {/* Planlagt tid */}
+                    {/* Planlagt tid */}
                           <div className="flex flex-col items-center min-w-[60px] sm:min-w-[100px] pl-0 sm:pl-2">
                             <span className="text-base sm:text-xl font-medium text-gray-900">{getPlanlagtStartTid(index)}</span>
                             <span className="text-xs sm:text-sm text-gray-500">({punkt.varighet} min)</span>
-                          </div>
+                      </div>
 
                           {/* Agendapunkt og ansvarlig */}
                           <div className="flex-1">
@@ -982,11 +982,11 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                               Ansvarlig: {punkt.ansvarlig}
                             </div>
                           </div>
-                        </div>
+                    </div>
 
                         {/* Høyre side: Faktisk tid og handlingsknapper */}
                         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-6 mt-2 sm:mt-0">
-                          {/* Faktisk tid */}
+                    {/* Faktisk tid */}
                           {punkt.startTid && (
                             <div className="flex flex-wrap items-center gap-1 sm:gap-2">
                               <span className="text-gray-500 text-xs sm:text-sm">Faktisk start:</span>
@@ -996,15 +996,15 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                   minute: '2-digit' 
                                 })}
                               </span>
-                              {punkt.tidBrukt && (
+                          {punkt.tidBrukt && (
                                 <>
                                   <span className="text-gray-500 text-xs sm:text-sm ml-2 sm:ml-4">Faktisk varighet:</span>
                                   <span className={`text-xs sm:text-sm font-medium ${punkt.tidBrukt > punkt.varighet ? 'text-red-500' : 'text-green-500'}`}>
-                                    {punkt.tidBrukt} min
+                              {punkt.tidBrukt} min
                                   </span>
-                                </>
-                              )}
-                            </div>
+                        </>
+                      )}
+                    </div>
                           )}
 
                           {/* Handlingsknapper */}
@@ -1057,35 +1057,35 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                             Kommentar
                           </label>
                           <div className="relative flex-1">
-                            <textarea
+                        <textarea
                               placeholder="Skriv kommentar... (Ctrl+V for å lime inn skjermbilde)"
-                              value={punkt.kommentar}
-                              onChange={(e) => handleAgendaKommentar(index, e.target.value)}
-                              onPaste={(e) => !isLocked && handlePasteImage(index, e)}
-                              disabled={isLocked}
+                          value={punkt.kommentar}
+                          onChange={(e) => handleAgendaKommentar(index, e.target.value)}
+                          onPaste={(e) => !isLocked && handlePasteImage(index, e)}
+                          disabled={isLocked}
                               className={`w-full border border-gray-200 rounded-xl p-2 sm:p-4 min-h-[100px] sm:min-h-[120px] text-sm sm:text-base text-gray-700 placeholder-gray-400 ${
                                 isLocked ? 'bg-gray-50' : 'focus:ring-2 focus:ring-blue-100 focus:border-blue-300'
                               }`}
                               rows="3"
                             />
                             <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 text-gray-400">
-                              <Image size={16} />
-                            </div>
-                          </div>
+                          <Image size={16} />
+                        </div>
+                      </div>
 
                           {/* Vedlegg */}
-                          {punkt.vedlegg.length > 0 && (
+                      {punkt.vedlegg.length > 0 && (
                             <div className="mt-4 sm:mt-6">
                               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                                 Vedlegg
                               </label>
                               <div className="flex flex-wrap gap-2">
-                                {punkt.vedlegg.map((vedlegg, vedleggIndex) => (
-                                  <div
+                          {punkt.vedlegg.map((vedlegg, vedleggIndex) => (
+                            <div
                                     key={vedlegg.id}
                                     className="relative group bg-white border border-gray-200 rounded-lg hover:shadow-sm transition-all"
-                                  >
-                                    <button
+                            >
+                              <button
                                       onClick={(e) => visVedlegg(vedlegg, index, vedleggIndex)}
                                       className="w-full flex flex-col items-start gap-1 px-2 sm:px-3 py-1 sm:py-2"
                                     >
@@ -1109,21 +1109,21 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                           style={{ backgroundImage: `url(${vedlegg.data})` }}
                                         />
                                       )}
-                                    </button>
+                              </button>
                                     {!isLocked && (
-                                      <button
-                                        onClick={() => slettVedlegg(index, vedleggIndex)}
+                              <button
+                                onClick={() => slettVedlegg(index, vedleggIndex)}
                                         className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                      >
-                                        <X size={12} />
-                                      </button>
+                              >
+                                <X size={12} />
+                              </button>
                                     )}
-                                  </div>
-                                ))}
-                              </div>
                             </div>
-                          )}
+                          ))}
+                              </div>
                         </div>
+                      )}
+                    </div>
 
                         {/* Høyre kolonne: Aksjoner */}
                         <div className="flex flex-col">
@@ -1132,13 +1132,13 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                               Aksjoner
                             </label>
                             {!isLocked && (
-                            <button
+                          <button
                                 onClick={() => handleAddAksjon(index)}
                                 className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200"
                               >
                                 <Plus size={16} />
                                 <span className="text-sm font-medium">Legg til aksjon</span>
-                            </button>
+                          </button>
                             )}
                           </div>
 
@@ -1164,28 +1164,28 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                       </div>
                                     </div>
                                     {!isLocked && (
-                            <button
+                          <button
                                         onClick={() => handleDeleteAksjon(index, aksjonIndex)}
                                         className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-50"
                                       >
                                         <X size={14} />
-                            </button>
-                                    )}
-                                  </div>
-                                </div>
+                          </button>
+                      )}
+                    </div>
+                  </div>
                               ))
                             ) : (
                               <div className="text-center text-gray-500 text-sm">
                                 Ingen aksjoner lagt til
-                              </div>
+                </div>
                             )}
-                          </div>
+            </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
-              </div>
+          </div>
             </div>
           )}
         </div>
@@ -1204,9 +1204,9 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
                 <div className="text-sm sm:text-base">Ble målsettingen med møtet oppnådd?</div>
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => !isLocked && setStatusOppnadd('oppnadd')}
-                    disabled={isLocked}
+                <button
+                  onClick={() => !isLocked && setStatusOppnadd('oppnadd')}
+                  disabled={isLocked}
                     className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border ${
                       statusOppnadd === 'oppnadd'
                         ? 'bg-green-50 text-green-600 border-green-200'
@@ -1215,19 +1215,19 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                   >
                     <Check size={16} className={statusOppnadd === 'oppnadd' ? 'text-green-500' : 'text-gray-400'} />
                     <span className="text-sm sm:text-base font-medium">Oppnådd</span>
-                  </button>
-                  <button
-                    onClick={() => !isLocked && setStatusOppnadd('ikke_oppnadd')}
-                    disabled={isLocked}
+                </button>
+                <button
+                  onClick={() => !isLocked && setStatusOppnadd('ikke_oppnadd')}
+                  disabled={isLocked}
                     className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border ${
-                      statusOppnadd === 'ikke_oppnadd'
+                        statusOppnadd === 'ikke_oppnadd' 
                         ? 'bg-red-50 text-red-600 border-red-200'
                         : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                     } ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     <X size={16} className={statusOppnadd === 'ikke_oppnadd' ? 'text-red-500' : 'text-gray-400'} />
                     <span className="text-sm sm:text-base font-medium">Ikke oppnådd</span>
-                  </button>
+                </button>
                 </div>
               </div>
 
@@ -1252,19 +1252,19 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
 
         {/* Lagre-knapp */}
         <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 mb-8">
-          <button
-            onClick={handleSave}
+            <button
+              onClick={handleSave}
             disabled={isLocked}
             className={`px-4 py-2 rounded-md flex items-center justify-center gap-2 ${
               isLocked
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow'
             } transition-all duration-200`}
-          >
-            <Save size={16} />
+            >
+              <Save size={16} />
             <span className="font-medium">Lagre endringer</span>
-          </button>
-        </div>
+            </button>
+          </div>
 
         {/* Legg til AksjonDialog */}
         <AksjonDialog
