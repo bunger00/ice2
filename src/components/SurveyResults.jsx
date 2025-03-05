@@ -203,6 +203,36 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     if (surveyResults.length === 0) return;
 
     try {
+      console.log('Forbereder diagramdata fra', surveyResults.length, 'resultater');
+      
+      // Beregn gjennomsnitt for hvert spørsmål
+      const preparedSum = surveyResults.reduce((sum, result) => sum + (result.preparedRating || 0), 0);
+      const effectiveSum = surveyResults.reduce((sum, result) => sum + (result.effectiveRating || 0), 0);
+      const contributionSum = surveyResults.reduce((sum, result) => sum + (result.contributionRating || 0), 0);
+      
+      const preparedAvg = (preparedSum / surveyResults.length).toFixed(1);
+      const effectiveAvg = (effectiveSum / surveyResults.length).toFixed(1);
+      const contributionAvg = (contributionSum / surveyResults.length).toFixed(1);
+      
+      console.log('Gjennomsnitt beregnet:', { preparedAvg, effectiveAvg, contributionAvg });
+      
+      // Sett opp data for gauge charts
+      setGaugeData({
+        prepared: {
+          value: preparedAvg,
+          percentage: (preparedAvg / 5) * 100
+        },
+        effective: {
+          value: effectiveAvg,
+          percentage: (effectiveAvg / 5) * 100
+        },
+        contribution: {
+          value: contributionAvg,
+          percentage: (contributionAvg / 5) * 100
+        }
+      });
+      
+      // Fortsett å sette opp data for bar chart for kompabilitet
       if (!Bar || !Chart) {
         console.error('Chart.js komponenter mangler');
         setChartComponents({
@@ -211,59 +241,26 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
         });
         return;
       }
-
-      console.log('Oppdaterer diagramdata basert på', surveyResults.length, 'svar');
       
-      // Beregn gjennomsnitt for hver spørsmålstype
-      const averageRatings = {
-        preparedRating: 0,
-        effectiveRating: 0,
-        contributionRating: 0
-      };
-
-      const count = surveyResults.length;
-      
-      surveyResults.forEach(result => {
-        averageRatings.preparedRating += result.preparedRating || 0;
-        averageRatings.effectiveRating += result.effectiveRating || 0;
-        averageRatings.contributionRating += result.contributionRating || 0;
-      });
-
-      // Del på antall for å få gjennomsnitt
-      if (count > 0) {
-        averageRatings.preparedRating = +(averageRatings.preparedRating / count).toFixed(1);
-        averageRatings.effectiveRating = +(averageRatings.effectiveRating / count).toFixed(1);
-        averageRatings.contributionRating = +(averageRatings.contributionRating / count).toFixed(1);
-      }
-
-      console.log('Beregnede gjennomsnitt:', averageRatings);
-
-      // Opprett diagramdata
       const data = {
         labels: ['Forberedelse', 'Effektivitet', 'Bidrag'],
-        datasets: [
-          {
-            label: 'Gjennomsnittsvurdering (1-5)',
-            data: [
-              averageRatings.preparedRating,
-              averageRatings.effectiveRating,
-              averageRatings.contributionRating
-            ],
-            backgroundColor: [
-              'rgba(54, 162, 235, 0.6)',
-              'rgba(75, 192, 192, 0.6)',
-              'rgba(153, 102, 255, 0.6)'
-            ],
-            borderColor: [
-              'rgb(54, 162, 235)',
-              'rgb(75, 192, 192)',
-              'rgb(153, 102, 255)'
-            ],
-            borderWidth: 1,
-          }
-        ]
+        datasets: [{
+          label: 'Gjennomsnittlig vurdering',
+          data: [preparedAvg, effectiveAvg, contributionAvg],
+          backgroundColor: [
+            'rgba(54, 162, 235, 0.7)',
+            'rgba(75, 192, 192, 0.7)',
+            'rgba(153, 102, 255, 0.7)'
+          ],
+          borderColor: [
+            'rgb(54, 162, 235)',
+            'rgb(75, 192, 192)',
+            'rgb(153, 102, 255)'
+          ],
+          borderWidth: 1
+        }]
       };
-
+      
       setChartData(data);
       setChartComponents({
         loaded: true,
@@ -277,6 +274,66 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
       });
     }
   }, [surveyResults]);
+
+  // State for gauge-stil data
+  const [gaugeData, setGaugeData] = useState({
+    prepared: { value: 0, percentage: 0 },
+    effective: { value: 0, percentage: 0 },
+    contribution: { value: 0, percentage: 0 }
+  });
+
+  // Gauge Chart Component
+  const GaugeChart = ({ title, data }) => (
+    <div className="mb-10">
+      <h3 className="text-lg font-medium mb-2 text-gray-700">{title}</h3>
+      <div className="relative w-full h-20 bg-gray-100 rounded-full overflow-hidden">
+        {/* Bakgrunnsbølgeeffekt */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute bottom-0 w-full" style={{ height: '70%' }}>
+            <svg viewBox="0 0 1440 120" className="absolute bottom-0 w-full h-full">
+              <path
+                fill="rgba(186, 230, 240, 0.4)"
+                d="M0,32L48,37.3C96,43,192,53,288,64C384,75,480,85,576,80C672,75,768,53,864,48C960,43,1056,53,1152,58.7C1248,64,1344,64,1392,64L1440,64L1440,120L1392,120C1344,120,1248,120,1152,120C1056,120,960,120,864,120C768,120,672,120,576,120C480,120,384,120,288,120C192,120,96,120,48,120L0,120Z"
+              ></path>
+            </svg>
+          </div>
+        </div>
+        
+        {/* Progress bar */}
+        <div 
+          className="absolute top-0 left-0 h-full bg-teal-600 rounded-r-full transition-all duration-700 ease-in-out z-10"
+          style={{ width: `${data.percentage}%` }}
+        ></div>
+        
+        {/* Verdi-indikator */}
+        <div className="absolute top-0 left-0 w-full h-full z-20">
+          <div 
+            className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center"
+            style={{ left: `${data.percentage}%`, transform: 'translate(-50%, -50%)' }}
+          >
+            <div className="bg-teal-700 text-white h-12 w-12 flex items-center justify-center rounded-full shadow-lg">
+              <span className="text-md font-bold">{data.value}</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Skala */}
+        <div className="w-full h-full flex items-end px-4 pb-1 z-20 relative">
+          <div className="grid grid-cols-5 w-full">
+            {[1, 2, 3, 4, 5].map(num => (
+              <div key={num} className="flex justify-center">
+                <span className="text-xs font-medium text-gray-600">{num}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-1 flex justify-between text-xs text-gray-500">
+        <span>Dårlig</span>
+        <span>Utmerket</span>
+      </div>
+    </div>
+  );
 
   // Renderingsfunksjon for resultattabellen (fallback når diagram ikke fungerer)
   const renderResultTable = () => (
@@ -343,6 +400,13 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
             <p className="text-sm text-gray-500">{surveyResults.length} svar mottatt</p>
           </div>
           
+          {/* Ny gauge style visning */}
+          <div className="mb-8 py-4">
+            <GaugeChart title="Hvor godt var møtet forberedt?" data={gaugeData.prepared} />
+            <GaugeChart title="Hvor effektivt var møtet?" data={gaugeData.effective} />
+            <GaugeChart title="Hvor godt bidro deltakerne?" data={gaugeData.contribution} />
+          </div>
+          
           {chartComponents.error ? (
             <>
               <div className="text-amber-600 mb-4 text-center text-sm p-2 bg-amber-50 rounded">
@@ -353,15 +417,14 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
             </>
           ) : (
             <>
-              {chartComponents.loaded && Bar ? (
-                <div className="relative h-80">
-                  <Bar data={chartData} options={chartOptions} />
-                </div>
-              ) : (
-                <div className="flex justify-center items-center h-80">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-                </div>
-              )}
+              {/* Original bar chart (skjult) */}
+              <div className="hidden">
+                {chartComponents.loaded && Bar && (
+                  <div className="relative h-80">
+                    <Bar data={chartData} options={chartOptions} />
+                  </div>
+                )}
+              </div>
               
               <div className="mt-8">
                 <h4 className="text-md font-medium mb-2 text-gray-700">Detaljerte resultater</h4>
