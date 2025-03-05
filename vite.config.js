@@ -18,7 +18,7 @@ export default defineConfig({
       include: [/node_modules/]
     },
     rollupOptions: {
-      external: ['firebase/auth/internal']
+      external: []
     },
     outDir: 'dist'
   }

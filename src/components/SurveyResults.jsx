@@ -1,12 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
-// Registrer Chart.js komponenter
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+// Dynamisk import av Chart.js for å unngå byggefeil
+let Chart;
+let CategoryScale;
+let LinearScale;
+let BarElement;
+let Title;
+let Tooltip;
+let Legend;
+let Bar;
+
+// Wrapper rundt Chart.js import for å håndtere feil
+try {
+  // Denne importen vil nå håndteres på et sikkert vis
+  const ChartModule = await import('chart.js');
+  const ReactChartjs2 = await import('react-chartjs-2');
+  
+  Chart = ChartModule.Chart;
+  CategoryScale = ChartModule.CategoryScale;
+  LinearScale = ChartModule.LinearScale;
+  BarElement = ChartModule.BarElement;
+  Title = ChartModule.Title;
+  Tooltip = ChartModule.Tooltip;
+  Legend = ChartModule.Legend;
+  Bar = ReactChartjs2.Bar;
+  
+  // Registrer Chart.js komponenter hvis importene lyktes
+  Chart.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+  console.log('Chart.js moduler ble lastet vellykket');
+} catch (error) {
+  console.error('Kunne ikke laste Chart.js:', error);
+}
 
 const SurveyResults = ({ passedMoteId, onClose }) => {
   const { moteId: urlMoteId } = useParams();
@@ -14,6 +41,7 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [chartError, setChartError] = useState(false);
   const [moteInfo, setMoteInfo] = useState(null);
   const [surveyResults, setSurveyResults] = useState([]);
   const [chartData, setChartData] = useState({
@@ -120,60 +148,102 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
   useEffect(() => {
     if (surveyResults.length === 0) return;
 
-    console.log('Oppdaterer diagramdata basert på', surveyResults.length, 'svar');
-    
-    // Beregn gjennomsnitt for hver spørsmålstype
-    const averageRatings = {
-      preparedRating: 0,
-      effectiveRating: 0,
-      contributionRating: 0
-    };
+    try {
+      if (!Bar || !Chart) {
+        console.error('Chart.js komponenter mangler');
+        setChartError(true);
+        return;
+      }
 
-    const count = surveyResults.length;
-    
-    surveyResults.forEach(result => {
-      averageRatings.preparedRating += result.preparedRating || 0;
-      averageRatings.effectiveRating += result.effectiveRating || 0;
-      averageRatings.contributionRating += result.contributionRating || 0;
-    });
+      console.log('Oppdaterer diagramdata basert på', surveyResults.length, 'svar');
+      
+      // Beregn gjennomsnitt for hver spørsmålstype
+      const averageRatings = {
+        preparedRating: 0,
+        effectiveRating: 0,
+        contributionRating: 0
+      };
 
-    // Del på antall for å få gjennomsnitt
-    if (count > 0) {
-      averageRatings.preparedRating = +(averageRatings.preparedRating / count).toFixed(1);
-      averageRatings.effectiveRating = +(averageRatings.effectiveRating / count).toFixed(1);
-      averageRatings.contributionRating = +(averageRatings.contributionRating / count).toFixed(1);
+      const count = surveyResults.length;
+      
+      surveyResults.forEach(result => {
+        averageRatings.preparedRating += result.preparedRating || 0;
+        averageRatings.effectiveRating += result.effectiveRating || 0;
+        averageRatings.contributionRating += result.contributionRating || 0;
+      });
+
+      // Del på antall for å få gjennomsnitt
+      if (count > 0) {
+        averageRatings.preparedRating = +(averageRatings.preparedRating / count).toFixed(1);
+        averageRatings.effectiveRating = +(averageRatings.effectiveRating / count).toFixed(1);
+        averageRatings.contributionRating = +(averageRatings.contributionRating / count).toFixed(1);
+      }
+
+      console.log('Beregnede gjennomsnitt:', averageRatings);
+
+      // Opprett diagramdata
+      const data = {
+        labels: ['Forberedelse', 'Effektivitet', 'Bidrag'],
+        datasets: [
+          {
+            label: 'Gjennomsnittsvurdering (1-5)',
+            data: [
+              averageRatings.preparedRating,
+              averageRatings.effectiveRating,
+              averageRatings.contributionRating
+            ],
+            backgroundColor: [
+              'rgba(54, 162, 235, 0.6)',
+              'rgba(75, 192, 192, 0.6)',
+              'rgba(153, 102, 255, 0.6)'
+            ],
+            borderColor: [
+              'rgb(54, 162, 235)',
+              'rgb(75, 192, 192)',
+              'rgb(153, 102, 255)'
+            ],
+            borderWidth: 1,
+          }
+        ]
+      };
+
+      setChartData(data);
+      setChartError(false);
+    } catch (err) {
+      console.error('Feil ved oppdatering av diagramdata:', err);
+      setChartError(true);
     }
-
-    console.log('Beregnede gjennomsnitt:', averageRatings);
-
-    // Opprett diagramdata
-    const data = {
-      labels: ['Forberedelse', 'Effektivitet', 'Bidrag'],
-      datasets: [
-        {
-          label: 'Gjennomsnittsvurdering (1-5)',
-          data: [
-            averageRatings.preparedRating,
-            averageRatings.effectiveRating,
-            averageRatings.contributionRating
-          ],
-          backgroundColor: [
-            'rgba(54, 162, 235, 0.6)',
-            'rgba(75, 192, 192, 0.6)',
-            'rgba(153, 102, 255, 0.6)'
-          ],
-          borderColor: [
-            'rgb(54, 162, 235)',
-            'rgb(75, 192, 192)',
-            'rgb(153, 102, 255)'
-          ],
-          borderWidth: 1,
-        }
-      ]
-    };
-
-    setChartData(data);
   }, [surveyResults]);
+
+  // Renderingsfunksjon for resultattabellen (fallback når diagram ikke fungerer)
+  const renderResultTable = () => (
+    <div className="overflow-hidden bg-white shadow-md rounded-lg">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Kategori
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Gjennomsnitt (1-5)
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {chartData.labels.map((label, index) => (
+            <tr key={label}>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm font-medium text-gray-900">{label}</div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-900 font-bold">{chartData.datasets[0].data[index]}</div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 
   // Renderingsfunksjon for modal eller fullside
   const renderContent = () => (
@@ -217,21 +287,32 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
                 </p>
               </div>
               
-              <div className="h-80 w-full">
-                <Bar options={chartOptions} data={chartData} />
-              </div>
-              
-              <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-                {chartData.labels.map((label, index) => (
-                  <div key={label} className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="font-medium text-gray-700">{label}</h3>
-                    <div className="mt-2 text-3xl font-bold text-blue-600">
-                      {chartData.datasets[0].data[index]}
-                      <span className="text-lg text-gray-500 ml-1">/5</span>
-                    </div>
+              {chartError ? (
+                <>
+                  <div className="text-amber-600 mb-4 text-center text-sm p-2 bg-amber-50 rounded">
+                    <p>Kunne ikke laste diagramvisning. Viser resultater i tabellformat i stedet.</p>
                   </div>
-                ))}
-              </div>
+                  {renderResultTable()}
+                </>
+              ) : (
+                <>
+                  <div className="h-80 w-full">
+                    {Bar && <Bar options={chartOptions} data={chartData} />}
+                  </div>
+                  
+                  <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {chartData.labels.map((label, index) => (
+                      <div key={label} className="bg-gray-50 p-4 rounded-lg">
+                        <h3 className="font-medium text-gray-700">{label}</h3>
+                        <div className="mt-2 text-3xl font-bold text-blue-600">
+                          {chartData.datasets[0].data[index]}
+                          <span className="text-lg text-gray-500 ml-1">/5</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
