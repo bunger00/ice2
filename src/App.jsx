@@ -886,13 +886,74 @@ function App() {
 
   const handleManuellLagring = async () => {
     try {
-      if (!moteInfo.id || !auth.currentUser) {
-        setToastMessage('Du må være logget inn og ha et aktivt møte for å lagre');
+      if (!auth.currentUser) {
+        setToastMessage('Du må være logget inn for å lagre møtet');
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
         return;
       }
 
+      // For nytt møte: Opprett først et dokument
+      if (!moteInfo.id) {
+        try {
+          console.log('Oppretter nytt møte i database...');
+          const moterRef = collection(db, 'moter');
+          const nyMoteData = {
+            tema: moteInfo.tema || '',
+            dato: moteInfo.dato || '',
+            startTid: moteInfo.startTid || '09:00',
+            innkallingsDato: moteInfo.innkallingsDato || '',
+            eier: moteInfo.eier || '',
+            fasilitator: moteInfo.fasilitator || '',
+            referent: moteInfo.referent || '',
+            hensikt: moteInfo.hensikt || '',
+            mal: moteInfo.mal || '',
+            deltakere: deltakere.map(d => ({
+              fagFunksjon: d.fagFunksjon || '',
+              navn: d.navn || '',
+              epost: d.epost || '',
+              forberedelser: d.forberedelser || ''
+            })),
+            agendaPunkter: agendaPunkter.map(a => ({
+              punkt: a.punkt || '',
+              ansvarlig: a.ansvarlig || '',
+              varighet: a.varighet || 15,
+              fullfort: a.fullfort || false
+            })),
+            userId: auth.currentUser.uid,
+            erGjennomfort: false,
+            erDelt: false,
+            opprettet: serverTimestamp(),
+            sistOppdatert: serverTimestamp()
+          };
+          
+          // Legg til dokumentet i Firestore
+          const docRef = await addDoc(moterRef, nyMoteData);
+          console.log('Nytt møte opprettet med ID:', docRef.id);
+          
+          // Oppdater lokalt moteInfo med den nye ID-en
+          setMoteInfo({
+            ...moteInfo,
+            id: docRef.id
+          });
+          
+          setToastMessage('Nytt møte opprettet og lagret');
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+          
+          // Oppdater listen over lagrede møter
+          await hentLagredeMoter();
+          return;
+        } catch (error) {
+          console.error('Feil ved opprettelse av nytt møte:', error);
+          setToastMessage('Kunne ikke opprette nytt møte. Vennligst prøv igjen.');
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+          return;
+        }
+      }
+
+      // For eksisterende møter: Oppdater dokument
       const moteRef = doc(db, 'moter', moteInfo.id);
       await updateDoc(moteRef, {
         tema: moteInfo.tema || '',
