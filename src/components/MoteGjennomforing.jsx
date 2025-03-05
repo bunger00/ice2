@@ -124,8 +124,8 @@ const AksjonDialog = ({ isOpen, onClose, onSave, deltakere }) => {
 function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStatus, setDeltakere, setAgendaPunkter, lagreMote, resetMote, setVisMoteSkjema, setVisLagredeMoter }) {
   const location = useLocation();
   
-  // Sett isLocked til true hvis vi kommer fra "Se møtereferat"
-  const [isLocked, setIsLocked] = useState(location.state?.shouldLock ?? true);
+  // Sett isLocked til false som standardverdi
+  const [isLocked, setIsLocked] = useState(location.state?.shouldLock ?? false);
   
   const [currentTime, setCurrentTime] = useState(new Date());
   const [deltakereStatus, setDeltakereStatus] = useState(
@@ -871,14 +871,14 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
               <BarChart size={16} />
               <span className="hidden sm:inline">Se evaluering</span>
             </button>
-            <button
-              onClick={toggleLock}
+          <button
+            onClick={toggleLock}
               className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 text-gray-700 hover:text-gray-900 transition-colors"
-              title={isLocked ? "Lås opp møtereferatet" : "Lås møtereferatet"}
-            >
+            title={isLocked ? "Lås opp møtereferatet" : "Lås møtereferatet"}
+          >
               {isLocked ? <Lock size={18} /> : <Unlock size={18} />}
               <span className="hidden sm:inline">{isLocked ? "Lås opp" : "Lås"}</span>
-            </button>
+          </button>
           </div>
         </div>
 
