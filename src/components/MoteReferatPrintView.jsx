@@ -2,7 +2,7 @@ import React from 'react';
 import { jsPDF } from 'jspdf';
 import { FileDown } from 'lucide-react';
 
-function MoteReferatPrintView({ moteInfo, deltakere, agendaPunkter, children, buttonClassName }) {
+function MoteReferatPrintView({ moteInfo, deltakere, agendaPunkter, children, buttonClassName, iconOnly = false }) {
   // Funksjon for å komprimere base64-bilde
   const compressImage = (base64String, maxWidth = 800, quality = 0.6) => {
     return new Promise((resolve) => {
@@ -695,14 +695,17 @@ function MoteReferatPrintView({ moteInfo, deltakere, agendaPunkter, children, bu
     <button 
       onClick={handleExport} 
       className={buttonClassName || "flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm rounded-md border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors"}
+      title="Last ned møtereferat som PDF"
     >
       {children || (
-        <>
-          <FileDown size={14} />
-          Eksporter møtereferat
-        </>
+        iconOnly ? <FileDown size={16} /> : (
+          <>
+            <FileDown size={14} />
+            Eksporter møtereferat
+          </>
+        )
       )}
-      </button>
+    </button>
   );
 }
 

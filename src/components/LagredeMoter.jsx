@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Edit2, FileDown, Search, Trash2, Play, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import PrintView from './PrintView';
+import MoteReferatPrintView from './MoteReferatPrintView';
 import DeleteDialog from './DeleteDialog';
 
 function LagredeMoter({ moter, onVelgMote, onSlettMote, onStatusChange }) {
@@ -139,7 +139,7 @@ function LagredeMoter({ moter, onVelgMote, onSlettMote, onStatusChange }) {
                                   navigate('/gjennomforing');
                                 }}
                                 className="p-1.5 rounded-full bg-green-100 hover:bg-green-200 text-green-600 transition-colors duration-200"
-                                title="Start gjennomføring"
+                                title="Start møtet"
                               >
                                 <Play size={16} />
                               </button>
@@ -209,7 +209,15 @@ function LagredeMoter({ moter, onVelgMote, onSlettMote, onStatusChange }) {
                                 <Eye size={16} />
                               </button>
                               <div className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors duration-200">
-                                <PrintView moteData={mote} iconOnly={true} />
+                                <MoteReferatPrintView
+                                  moteInfo={mote}
+                                  deltakere={mote.deltakere || []}
+                                  agendaPunkter={mote.agendaPunkter || []}
+                                  buttonClassName=""
+                                  iconOnly={true}
+                                >
+                                  <FileDown size={16} />
+                                </MoteReferatPrintView>
                               </div>
                               <button
                                 onClick={(e) => handleDelete(e, mote)}
