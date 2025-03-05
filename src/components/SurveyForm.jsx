@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 // import Slider from 'rc-slider';
 import { doc, getDoc, collection, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 
 // Custom Slider-komponent basert på standard HTML input
 const CustomSlider = ({ min, max, step, value, onChange }) => {
@@ -108,6 +108,20 @@ const SurveyForm = () => {
         throw new Error('Mangler møte-ID');
       }
       
+      // Anonym autentisering hvis brukeren ikke er logget inn
+      let currentUser = user;
+      if (!currentUser) {
+        try {
+          console.log('Starter anonym autentisering...');
+          const anonymousAuth = await signInAnonymously(auth);
+          currentUser = anonymousAuth.user;
+          console.log('Anonym autentisering vellykket. Bruker-ID:', currentUser.uid);
+        } catch (authError) {
+          console.error('Kunne ikke logge inn anonymt:', authError);
+          // Fortsett uten autentisering hvis det ikke fungerer
+        }
+      }
+      
       // Samle dataene
       const surveyData = {
         moteId,
@@ -118,20 +132,29 @@ const SurveyForm = () => {
         contributionRating: answers.contributionRating,
         timestamp: serverTimestamp(),
         // Legg til bruker-ID hvis tilgjengelig
-        userId: user ? user.uid : 'anonym'
+        userId: currentUser ? currentUser.uid : 'anonym',
+        // Legg til anonym flag
+        erAnonym: currentUser ? currentUser.isAnonymous : true
       };
 
       console.log('Sender data til Firestore:', JSON.stringify(surveyData, (key, value) => 
         key === 'timestamp' ? 'serverTimestamp()' : value
       ));
 
-      // Bruk setDoc med auto-generert ID for å unngå problemer med tillatelser
-      const surveyId = `${moteId}_${Date.now()}`;
-      const surveyRef = doc(db, 'surveys', surveyId);
-      
-      await setDoc(surveyRef, surveyData);
-      
-      console.log('Svar lagret med dokument-ID:', surveyId);
+      // Prøv først med addDoc for å la Firestore generere ID
+      try {
+        const surveysRef = collection(db, 'surveys');
+        const docRef = await addDoc(surveysRef, surveyData);
+        console.log('Svar lagret med dokument-ID (addDoc):', docRef.id);
+      } catch (addError) {
+        console.error('addDoc feilet, prøver setDoc:', addError);
+        
+        // Fallback til setDoc hvis addDoc feiler
+        const surveyId = `${moteId}_${Date.now()}`;
+        const surveyRef = doc(db, 'surveys', surveyId);
+        await setDoc(surveyRef, surveyData);
+        console.log('Svar lagret med dokument-ID (setDoc):', surveyId);
+      }
       
       // Vis bekreftelse
       setSubmitted(true);

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { collection, query, where, onSnapshot, doc, getDoc, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 
 // Deklarasjon av variabler for Chart.js komponenter
 let Chart;
@@ -137,6 +137,22 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     fetchMoteInfo();
   }, [effectiveMoteId]);
 
+  // Funksjon for anonym autentisering
+  const ensureAuthentication = async () => {
+    if (!user) {
+      try {
+        console.log('Starter anonym autentisering for resultatsiden...');
+        const anonymousAuth = await signInAnonymously(auth);
+        console.log('Anonym autentisering vellykket for resultatsiden. Bruker-ID:', anonymousAuth.user.uid);
+        return anonymousAuth.user;
+      } catch (authError) {
+        console.error('Kunne ikke logge inn anonymt for resultatsiden:', authError);
+        return null;
+      }
+    }
+    return user;
+  };
+
   // Lytt til endringer i spørreundersøkelsesresultater i sanntid
   useEffect(() => {
     if (!effectiveMoteId) return;
@@ -147,6 +163,10 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
     // Bruk getDocs i stedet for onSnapshot for å unngå tilgangsproblemer
     const fetchSurveyResults = async () => {
       try {
+        // Sørg for autentisering før vi henter data
+        await ensureAuthentication();
+        
+        console.log('Henter undersøkelsesresultater med autentisert bruker');
         const surveysRef = collection(db, 'surveys');
         const surveysQuery = query(surveysRef, where('moteId', '==', effectiveMoteId));
         const snapshot = await getDocs(surveysQuery);
@@ -166,6 +186,7 @@ const SurveyResults = ({ passedMoteId, onClose }) => {
       }
     };
 
+    // Kall funksjonen umiddelbart
     fetchSurveyResults();
 
     // Oppdater resultatene hvert 10. sekund for å simulere sanntidsoppdateringer
