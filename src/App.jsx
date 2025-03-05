@@ -722,7 +722,7 @@ function App() {
           id: doc.id,
           tema: data.tema || '',
           dato: data.dato || '',
-          startTid: data.startTid || '09:00',
+          startTid: data.startTid || moteInfo.startTid || '09:00',
           innkallingsDato: data.innkallingsDato || '',
           eier: data.eier || '',
           fasilitator: data.fasilitator || '',
@@ -983,7 +983,7 @@ function App() {
       await updateDoc(moteRef, {
         tema: moteInfo.tema || '',
         dato: moteInfo.dato || '',
-        startTid: moteInfo.startTid || '09:00',
+        startTid: moteInfo.startTid || '',
         innkallingsDato: moteInfo.innkallingsDato || '',
         eier: moteInfo.eier || '',
         fasilitator: moteInfo.fasilitator || '',

@@ -33,6 +33,21 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
     }
   }, []);
 
+  // Legg til en useEffect for å laste inn lagret starttid fra localStorage
+  useEffect(() => {
+    if (moteInfo.id) {
+      const lagretStartTid = localStorage.getItem(`mote_${moteInfo.id}_startTid`);
+      if (lagretStartTid) {
+        console.log(`Laster starttid ${lagretStartTid} fra localStorage for møte ${moteInfo.id}`);
+        // Forsiktig oppdatering av starttid uten å overskrive andre felter
+        setMoteInfo(prevState => ({
+          ...prevState,
+          startTid: lagretStartTid
+        }));
+      }
+    }
+  }, [moteInfo.id]);
+
   // Hent unike navn fra deltakerlisten
   const deltakerNavn = deltakere
     .map(d => d.navn)
@@ -89,12 +104,22 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
     const roundedMinutes = Math.round(minutes / 10) * 10;
     const formattedMinutes = roundedMinutes.toString().padStart(2, '0');
     
+    let nyStartTid = '';
+    
     // Hvis det blir 60 minutter, juster timen
     if (roundedMinutes === 60) {
       const newHours = (parseInt(hours) + 1).toString().padStart(2, '0');
-      setMoteInfo(prevState => ({ ...prevState, startTid: `${newHours}:00` }));
+      nyStartTid = `${newHours}:00`;
+      setMoteInfo(prevState => ({ ...prevState, startTid: nyStartTid }));
     } else {
-      setMoteInfo(prevState => ({ ...prevState, startTid: `${hours}:${formattedMinutes}` }));
+      nyStartTid = `${hours}:${formattedMinutes}`;
+      setMoteInfo(prevState => ({ ...prevState, startTid: nyStartTid }));
+    }
+    
+    // Lagre endringen direkte til localStorage for å unngå reset
+    if (moteInfo.id) {
+      localStorage.setItem(`mote_${moteInfo.id}_startTid`, nyStartTid);
+      console.log(`Starttid ${nyStartTid} lagret for møte ${moteInfo.id} i localStorage`);
     }
   };
 
