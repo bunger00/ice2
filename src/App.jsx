@@ -37,7 +37,7 @@ function App() {
     gjennomforingsStatus: {
       statusOppnadd: '',
       nyDato: '',
-      mal: ''
+    mal: ''
     }
   });
 
@@ -322,7 +322,7 @@ function App() {
       gjennomforingsStatus: moteData.gjennomforingsStatus || {
         statusOppnadd: '',
         nyDato: '',
-        mal: moteData.mal || ''
+      mal: moteData.mal || ''
       }
     });
 
@@ -398,7 +398,7 @@ function App() {
       gjennomforingsStatus: {
         statusOppnadd: '',
         nyDato: '',
-        mal: ''
+      mal: ''
       }
     });
 
@@ -717,12 +717,16 @@ function App() {
     const unsubscribe = onSnapshot(doc(db, 'moter', moteInfo.id), (doc) => {
       if (doc.exists()) {
         const data = doc.data();
-        // Oppdater møtedata
+        
+        // Sjekk om det finnes en lokalt lagret starttid
+        const lokaltLagretStartTid = localStorage.getItem(`mote_${doc.id}_startTid`);
+        
+        // Oppdater møtedata - prioriter lokalt lagret starttid hvis den finnes
         setMoteInfo({
           id: doc.id,
           tema: data.tema || '',
           dato: data.dato || '',
-          startTid: data.startTid || moteInfo.startTid || '09:00',
+          startTid: lokaltLagretStartTid || data.startTid || '09:00',
           innkallingsDato: data.innkallingsDato || '',
           eier: data.eier || '',
           fasilitator: data.fasilitator || '',

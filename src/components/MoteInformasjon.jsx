@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp, Eye, EyeOff } from 'lucide-react';
 import AIMalValidering from './AIMalValidering';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -110,16 +112,23 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
     if (roundedMinutes === 60) {
       const newHours = (parseInt(hours) + 1).toString().padStart(2, '0');
       nyStartTid = `${newHours}:00`;
-      setMoteInfo(prevState => ({ ...prevState, startTid: nyStartTid }));
     } else {
       nyStartTid = `${hours}:${formattedMinutes}`;
-      setMoteInfo(prevState => ({ ...prevState, startTid: nyStartTid }));
     }
+    
+    // Oppdater lokalt state
+    setMoteInfo(prevState => ({ ...prevState, startTid: nyStartTid }));
     
     // Lagre endringen direkte til localStorage for å unngå reset
     if (moteInfo.id) {
       localStorage.setItem(`mote_${moteInfo.id}_startTid`, nyStartTid);
       console.log(`Starttid ${nyStartTid} lagret for møte ${moteInfo.id} i localStorage`);
+      
+      // Lagre direkte til Firestore også
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      updateDoc(moteRef, { startTid: nyStartTid })
+        .then(() => console.log(`Starttid ${nyStartTid} lagret direkte til Firestore`))
+        .catch(err => console.error('Feil ved lagring av starttid til Firestore:', err));
     }
   };
 
@@ -156,7 +165,17 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
             type="text"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
             value={moteInfo[role]}
-            onChange={(e) => handleRoleChange(role, e.target.value)}
+            onChange={(e) => {
+              const nyVerdi = e.target.value;
+              handleRoleChange(role, nyVerdi);
+              
+              // Lagre direkte til Firestore hvis møtet er lagret
+              if (moteInfo.id) {
+                const moteRef = doc(db, 'moter', moteInfo.id);
+                updateDoc(moteRef, { [role]: nyVerdi })
+                  .catch(err => console.error(`Feil ved lagring av ${role} til Firestore:`, err));
+              }
+            }}
             onFocus={() => setShowDropdown({ ...showDropdown, [role]: true })}
             onBlur={(e) => {
               setTimeout(() => {
@@ -204,7 +223,17 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
               type="text"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
               value={moteInfo.tema}
-              onChange={(e) => setMoteInfo({...moteInfo, tema: e.target.value})}
+              onChange={(e) => {
+                const nyVerdi = e.target.value;
+                setMoteInfo({...moteInfo, tema: nyVerdi});
+                
+                // Lagre direkte til Firestore hvis møtet er lagret
+                if (moteInfo.id) {
+                  const moteRef = doc(db, 'moter', moteInfo.id);
+                  updateDoc(moteRef, { tema: nyVerdi })
+                    .catch(err => console.error('Feil ved lagring av tema til Firestore:', err));
+                }
+              }}
             />
           </div>
 
@@ -215,7 +244,17 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
                 type="date"
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
                 value={moteInfo.dato}
-                onChange={(e) => setMoteInfo({...moteInfo, dato: e.target.value})}
+                onChange={(e) => {
+                  const nyVerdi = e.target.value;
+                  setMoteInfo({...moteInfo, dato: nyVerdi});
+                  
+                  // Lagre direkte til Firestore hvis møtet er lagret
+                  if (moteInfo.id) {
+                    const moteRef = doc(db, 'moter', moteInfo.id);
+                    updateDoc(moteRef, { dato: nyVerdi })
+                      .catch(err => console.error('Feil ved lagring av dato til Firestore:', err));
+                  }
+                }}
               />
             </div>
             <div>
@@ -261,7 +300,17 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
               type="date"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
               value={moteInfo.innkallingsDato}
-              onChange={(e) => setMoteInfo({...moteInfo, innkallingsDato: e.target.value})}
+              onChange={(e) => {
+                const nyVerdi = e.target.value;
+                setMoteInfo({...moteInfo, innkallingsDato: nyVerdi});
+                
+                // Lagre direkte til Firestore hvis møtet er lagret
+                if (moteInfo.id) {
+                  const moteRef = doc(db, 'moter', moteInfo.id);
+                  updateDoc(moteRef, { innkallingsDato: nyVerdi })
+                    .catch(err => console.error('Feil ved lagring av innkallingsdato til Firestore:', err));
+                }
+              }}
             />
           </div>
 
@@ -300,7 +349,17 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
               rows="2"
               value={moteInfo.hensikt}
-              onChange={(e) => setMoteInfo({...moteInfo, hensikt: e.target.value})}
+              onChange={(e) => {
+                const nyVerdi = e.target.value;
+                setMoteInfo({...moteInfo, hensikt: nyVerdi});
+                
+                // Lagre direkte til Firestore hvis møtet er lagret
+                if (moteInfo.id) {
+                  const moteRef = doc(db, 'moter', moteInfo.id);
+                  updateDoc(moteRef, { hensikt: nyVerdi })
+                    .catch(err => console.error('Feil ved lagring av hensikt til Firestore:', err));
+                }
+              }}
             />
           </div>
 
@@ -313,14 +372,34 @@ function MoteInformasjon({ moteInfo, setMoteInfo, deltakere, setDeltakere }) {
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-0 outline-none"
                 rows="2"
                 value={moteInfo.mal}
-                onChange={(e) => setMoteInfo({...moteInfo, mal: e.target.value})}
+                onChange={(e) => {
+                  const nyVerdi = e.target.value;
+                  setMoteInfo({...moteInfo, mal: nyVerdi});
+                  
+                  // Lagre direkte til Firestore hvis møtet er lagret
+                  if (moteInfo.id) {
+                    const moteRef = doc(db, 'moter', moteInfo.id);
+                    updateDoc(moteRef, { mal: nyVerdi })
+                      .catch(err => console.error('Feil ved lagring av målsetting til Firestore:', err));
+                  }
+                }}
               />
             </div>
             
             <div className="w-1/3 pt-6">
               <AIMalValidering 
                 mal={moteInfo.mal}
-                onUpdateMal={(nyMal) => setMoteInfo({...moteInfo, mal: nyMal})}
+                onUpdateMal={(nyMal) => {
+                  const nyVerdi = nyMal;
+                  setMoteInfo({...moteInfo, mal: nyVerdi});
+                  
+                  // Lagre direkte til Firestore hvis møtet er lagret
+                  if (moteInfo.id) {
+                    const moteRef = doc(db, 'moter', moteInfo.id);
+                    updateDoc(moteRef, { mal: nyVerdi })
+                      .catch(err => console.error('Feil ved lagring av målsetting til Firestore:', err));
+                  }
+                }}
               />
             </div>
           </div>
