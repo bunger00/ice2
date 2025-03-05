@@ -10,17 +10,18 @@ import { nb } from 'date-fns/locale';
 import 'jspdf-autotable';
 
 function PrintView({ 
-  moteInfo, 
-  deltakere, 
-  agendaPunkter, 
-  status, 
-  statusOppnadd, 
-  nyDato,
+  moteData, 
   buttonClassName,
   title,
-  children 
+  children,
+  iconOnly = false
 }) {
   const contentRef = useRef();
+  const moteInfo = moteData || {};
+  const deltakere = moteData?.deltakere || [];
+  const agendaPunkter = moteData?.agendaPunkter || [];
+  const statusOppnadd = moteData?.gjennomforingsStatus?.statusOppnadd;
+  const nyDato = moteData?.gjennomforingsStatus?.nyDato;
 
   const generatePDF = () => {
     const doc = new jsPDF();
@@ -208,29 +209,16 @@ function PrintView({
       });
     }
 
-    doc.save(`Møtereferat-${moteInfo.tema}-${moteInfo.dato}.pdf`);
-  };
-
-  // Hjelpefunksjon for å beregne sluttid
-  const beregnSluttTid = (startTid, varighet) => {
-    try {
-      const [timer, minutter] = startTid.split(':').map(Number);
-      const tid = new Date();
-      tid.setHours(timer);
-      tid.setMinutes(minutter);
-      tid.setMinutes(tid.getMinutes() + varighet);
-      return tid.toLocaleTimeString('no-NO', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      });
-    } catch (error) {
-      return '--:--';
-    }
+    doc.save(`Møtereferat-${moteInfo.tema || 'ukjent'}-${moteInfo.dato || 'ukjent'}.pdf`);
   };
 
   return (
-    <button onClick={generatePDF} className={buttonClassName}>
-      {children}
+    <button 
+      onClick={generatePDF} 
+      className={buttonClassName}
+      title="Last ned møtereferat som PDF"
+    >
+      {iconOnly ? <FileDown size={16} /> : (children || <FileDown size={16} />)}
     </button>
   );
 }
