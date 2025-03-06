@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Plus, X, GripVertical } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, X, GripVertical, Clock, ListChecks, Users, PlusCircle, Calendar, Timer } from 'lucide-react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { format, addMinutes, parse } from 'date-fns';
 import useAutoSave from '../hooks/useAutoSave';
@@ -49,49 +49,68 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
 
     return (
       <div className="relative">
-        <input
-          type="text"
-          value={punkt.ansvarlig}
-          onChange={(e) => handleAgendaEndring(index, 'ansvarlig', e.target.value)}
-          className="w-full border rounded p-2 bg-white cursor-pointer focus:border-blue-500 focus:ring-blue-500"
-          placeholder="Velg eller skriv navn"
-          list="deltakere-list"
-          disabled={disabled}
-        />
-        <datalist id="deltakere-list">
-          {deltakerNavn.map((navn, i) => (
-            <option key={i} value={navn} />
-          ))}
-        </datalist>
+        <div className="relative flex items-center rounded-md shadow-sm border border-gray-300 focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white">
+          <span className="pl-2 text-gray-500"><Users size={16} /></span>
+          <input
+            type="text"
+            value={punkt.ansvarlig}
+            onChange={(e) => handleAgendaEndring(index, 'ansvarlig', e.target.value)}
+            className="w-full pl-2 py-2 rounded-md focus:outline-none"
+            placeholder="Velg eller skriv navn"
+            list="deltakere-list"
+            disabled={disabled}
+          />
+          <datalist id="deltakere-list">
+            {deltakerNavn.map((navn, i) => (
+              <option key={i} value={navn} />
+            ))}
+          </datalist>
+        </div>
       </div>
     );
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mb-6">
-      <div 
+    <div className="bg-white rounded-lg shadow-md p-6 mb-6 transition-all duration-200">
+      <div
         className="flex items-center justify-between mb-4 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <h2 className="text-2xl font-bold">Agenda</h2>
-        <button className="text-gray-500 hover:text-gray-700">
-          {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+        <div className="flex items-center space-x-2">
+          <ListChecks size={20} className="text-blue-500" />
+          <h2 className="text-xl font-semibold text-gray-800">Agenda</h2>
+        </div>
+        <button className="p-1 rounded-full hover:bg-gray-100 transition-colors">
+          {isExpanded ? <ChevronUp size={20} className="text-gray-600" /> : <ChevronDown size={20} className="text-gray-600" />}
         </button>
       </div>
 
       {isExpanded && (
-        <div className="border rounded-lg overflow-hidden">
-          <div className="hidden md:grid md:grid-cols-[40px_1fr_6fr_3fr_40px] gap-4 font-medium text-gray-700 p-2">
+        <div className="bg-gray-50 rounded-lg overflow-hidden">
+          <div className="hidden md:grid md:grid-cols-[40px_1fr_6fr_3fr_40px] gap-4 font-medium text-gray-700 p-4 bg-gray-100 rounded-t-lg">
             <div></div>
-            <div className="text-center">Tid</div>
-            <div>Agendapunkt</div>
-            <div>Ansvarlig</div>
+            <div className="flex items-center">
+              <Clock size={16} className="mr-2 text-gray-500" />
+              <span>Tid</span>
+            </div>
+            <div className="flex items-center">
+              <ListChecks size={16} className="mr-2 text-gray-500" />
+              <span>Agendapunkt</span>
+            </div>
+            <div className="flex items-center">
+              <Users size={16} className="mr-2 text-gray-500" />
+              <span>Ansvarlig</span>
+            </div>
             <div></div>
           </div>
 
           <Droppable droppableId="agenda">
             {(provided) => (
-              <div ref={provided.innerRef} {...provided.droppableProps} className="divide-y">
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className="p-4 space-y-3"
+              >
                 {agendaPunkter.map((punkt, index) => {
                   const tid = beregnTidspunkt(index);
                   return (
@@ -100,13 +119,14 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className="bg-white rounded-lg shadow-sm md:shadow-none"
+                          className="bg-white rounded-lg border border-gray-200 hover:border-blue-200 transition-colors shadow-sm"
                         >
+                          {/* Desktop layout */}
                           <div className="hidden md:grid md:grid-cols-[40px_1fr_6fr_3fr_40px] gap-4 items-center p-4">
                             <div {...provided.dragHandleProps} className="flex justify-center text-gray-400 hover:text-gray-600">
                               <GripVertical size={20} />
                             </div>
-                            
+
                             <div className="flex flex-col items-center">
                               <div className="text-lg font-medium text-gray-800">{tid}</div>
                               <div className="flex flex-col items-center gap-1">
@@ -118,80 +138,97 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                                   value={punkt.varighet}
                                   onChange={(e) => handleAgendaEndring(index, 'varighet', parseInt(e.target.value))}
                                   disabled={disabled}
-                                  className="w-20"
+                                  className="w-full accent-blue-500"
                                 />
-                                <span className="text-sm text-gray-500">{punkt.varighet} min</span>
+                                <div className="text-sm text-gray-500 flex items-center">
+                                  <Timer size={14} className="mr-1" />
+                                  <span>{punkt.varighet} min</span>
+                                </div>
                               </div>
                             </div>
 
-                            <div className="flex items-start">
-                              <textarea
-                                value={punkt.punkt}
-                                onChange={(e) => handleAgendaEndring(index, 'punkt', e.target.value)}
-                                className="w-full p-2 border rounded resize-none overflow-hidden text-lg font-medium"
-                                style={{ fontSize: '28px' }}  // Legg til direkte style for fontstørrelse
-                                placeholder="Beskriv agendapunktet"
-                                rows="1"
-                                onInput={e => {
-                                  e.target.style.height = 'auto';
-                                  e.target.style.height = e.target.scrollHeight + 'px';
-                                }}
-                                disabled={disabled}
-                              />
+                            <div>
+                              <div className="relative flex items-center rounded-md shadow-sm border border-gray-300 focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white">
+                                <span className="pl-2 text-gray-500"><ListChecks size={16} /></span>
+                                <textarea
+                                  value={punkt.punkt}
+                                  onChange={(e) => handleAgendaEndring(index, 'punkt', e.target.value)}
+                                  className="w-full pl-2 py-2 rounded-md focus:outline-none resize-none"
+                                  placeholder="Beskriv agendapunktet"
+                                  rows="1"
+                                  onInput={e => {
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = e.target.scrollHeight + 'px';
+                                  }}
+                                  disabled={disabled}
+                                />
+                              </div>
                             </div>
 
-                            <div className="flex items-center">
-                              <div className="p-2 w-full">
-                                {renderAnsvarligInput(index, punkt)}
-                              </div>
+                            <div>
+                              {renderAnsvarligInput(index, punkt)}
                             </div>
 
                             <div className="flex justify-center">
-                              <button
-                                onClick={() => {
-                                  const nyeAgendaPunkter = agendaPunkter.filter((_, i) => i !== index);
-                                  setAgendaPunkter(nyeAgendaPunkter);
-                                }}
-                                className="text-red-500 hover:text-red-700"
-                                disabled={disabled}
-                              >
-                                <X size={20} />
-                              </button>
+                              {!disabled && (
+                                <button
+                                  onClick={() => {
+                                    const nyeAgendaPunkter = agendaPunkter.filter((_, i) => i !== index);
+                                    setAgendaPunkter(nyeAgendaPunkter);
+                                  }}
+                                  className="p-1 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                                  title="Fjern agendapunkt"
+                                >
+                                  <X size={18} />
+                                </button>
+                              )}
                             </div>
                           </div>
 
+                          {/* Mobile layout */}
                           <div className="md:hidden p-4 space-y-3">
-                            <div className="flex justify-between items-center">
+                            <div className="flex justify-between">
                               <div className="flex items-center gap-2">
                                 <div {...provided.dragHandleProps} className="text-gray-400">
                                   <GripVertical size={20} />
                                 </div>
                                 <div className="text-lg font-medium text-gray-800">{tid}</div>
                               </div>
-                              <button
-                                onClick={() => {
-                                  const nyeAgendaPunkter = agendaPunkter.filter((_, i) => i !== index);
-                                  setAgendaPunkter(nyeAgendaPunkter);
-                                }}
-                                className="text-red-500"
-                                disabled={disabled}
-                              >
-                                <X size={20} />
-                              </button>
+                              {!disabled && (
+                                <button
+                                  onClick={() => {
+                                    const nyeAgendaPunkter = agendaPunkter.filter((_, i) => i !== index);
+                                    setAgendaPunkter(nyeAgendaPunkter);
+                                  }}
+                                  className="text-red-500"
+                                  disabled={disabled}
+                                >
+                                  <X size={20} />
+                                </button>
+                              )}
                             </div>
 
                             <div className="space-y-3">
-                              <textarea
-                                value={punkt.punkt}
-                                onChange={(e) => handleAgendaEndring(index, 'punkt', e.target.value)}
-                                className="w-full p-3 border rounded-lg focus:outline-none focus:border-blue-500 text-base"
-                                rows="3"
-                                placeholder="Beskriv agendapunktet"
-                                disabled={disabled}
-                              />
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center">
+                                  <ListChecks size={14} className="mr-1" />
+                                  <span>Agendapunkt</span>
+                                </label>
+                                <textarea
+                                  value={punkt.punkt}
+                                  onChange={(e) => handleAgendaEndring(index, 'punkt', e.target.value)}
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-base"
+                                  rows="3"
+                                  placeholder="Beskriv agendapunktet"
+                                  disabled={disabled}
+                                />
+                              </div>
 
                               <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
-                                <span className="text-sm text-gray-600">Varighet:</span>
+                                <span className="text-sm text-gray-600 flex items-center">
+                                  <Timer size={14} className="mr-1" />
+                                  <span>Varighet:</span>
+                                </span>
                                 <input
                                   type="range"
                                   min="5"
@@ -199,13 +236,17 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                                   step="5"
                                   value={punkt.varighet}
                                   onChange={(e) => handleAgendaEndring(index, 'varighet', parseInt(e.target.value))}
+                                  className="flex-1 accent-blue-500"
                                   disabled={disabled}
-                                  className="flex-1"
                                 />
-                                <span className="text-sm font-medium">{punkt.varighet} min</span>
+                                <span className="text-sm font-medium text-gray-700">{punkt.varighet} min</span>
                               </div>
 
-                              <div className="bg-gray-50 p-2 rounded-lg">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center">
+                                  <Users size={14} className="mr-1" />
+                                  <span>Ansvarlig</span>
+                                </label>
                                 {renderAnsvarligInput(index, punkt)}
                               </div>
                             </div>
@@ -233,19 +274,21 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                 setHarEndringer(true);
                 setSisteEndring(new Date());
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-md hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-blue-300"
             >
-              <Plus size={16} />
+              <PlusCircle size={16} />
               Legg til punkt
             </button>
 
-            <div className="grid grid-cols-12 gap-4 items-start bg-gray-50 p-4 rounded-lg">
+            <div className="grid grid-cols-12 gap-4 items-start bg-blue-50 p-4 rounded-lg border border-blue-100">
               <div className="col-span-2">
-                <div className="text-lg font-bold text-gray-800">
+                <div className="text-lg font-bold text-gray-800 flex items-center justify-center">
+                  <Clock size={16} className="mr-2 text-blue-500" />
                   {beregnSluttTid()}
                 </div>
               </div>
-              <div className="col-span-9 font-bold text-gray-800">
+              <div className="col-span-9 font-bold text-gray-800 flex items-center">
+                <Calendar size={16} className="mr-2 text-blue-500" />
                 Møteslutt
               </div>
               <div className="col-span-1"></div>
