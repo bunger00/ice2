@@ -56,4 +56,31 @@ body {
 .agenda-punkt-input {
   font-size: 1.5rem !important;
   line-height: 2rem !important;
+}
+
+/* Agenda input styling - forbedringer */
+textarea {
+  transition: height 0.1s ease-out;
+  backface-visibility: hidden; /* Forhindrer flimmer i noen nettlesere */
+  -webkit-font-smoothing: antialiased;
+  will-change: height; /* Hint til nettleseren om at høyden vil endre seg */
+}
+
+.agenda-input {
+  font-size: 1.25rem !important;
+  line-height: 1.5 !important;
+  font-weight: bold !important;
+  min-height: 40px;
+  transition: all 0.2s;
+  overflow-y: hidden; /* Skjul scrollbar */
+}
+
+.agenda-input::placeholder {
+  font-weight: normal !important;
+  opacity: 0.6;
+}
+
+.agenda-input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
 } 

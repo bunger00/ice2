@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 
 // Eksporter som default i stedet for named export
 const useAutoSave = (moteId, data, type) => {
@@ -9,8 +9,14 @@ const useAutoSave = (moteId, data, type) => {
 
   useEffect(() => {
     if (harEndringer && moteId) {
+      // Reduser timeout for agenda til 5 sekunder for raskere lagring
+      const timeoutDelay = type === 'agenda' ? 5000 : 30000;
+      
+      console.log(`Starter timer for autosave av ${type} om ${timeoutDelay/1000} sekunder...`);
+      
       const timer = setTimeout(async () => {
         try {
+          console.log(`Utfører autosave av ${type}...`);
           const moteRef = doc(db, 'moter', moteId);
           const oppdatering = {};
 
@@ -38,16 +44,25 @@ const useAutoSave = (moteId, data, type) => {
           }
 
           oppdatering.sistOppdatert = serverTimestamp();
-          
-          // Utfør selve oppdateringen av dokumentet
           await updateDoc(moteRef, oppdatering);
-          
+
+          // Bare logg historikk for større endringer (ikke agenda-punkt endringer)
+          if (type !== 'agenda') {
+            const historikkRef = collection(db, 'moter', moteId, 'historikk');
+            await addDoc(historikkRef, {
+              tidspunkt: serverTimestamp(),
+              endretAv: auth.currentUser?.email || 'Ukjent',
+              type,
+              endringer: data
+            });
+          }
+
           setHarEndringer(false);
           console.log(`Automatisk lagring av ${type} fullført`);
         } catch (error) {
           console.error('Feil ved automatisk lagring:', error);
         }
-      }, 30000);
+      }, timeoutDelay);
 
       return () => clearTimeout(timer);
     }

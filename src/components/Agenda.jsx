@@ -18,12 +18,108 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
   }, [startTid]);
 
   const handleAgendaEndring = (index, felt, verdi) => {
+    // Oppdater textarea høyde umiddelbart først for å unngå forsinkelse
+    if (felt === 'punkt') {
+      const textarea = document.activeElement;
+      if (textarea && (textarea.id === `agendapunkt-${index}` || textarea.id === `agendapunkt-mobile-${index}`)) {
+        // Juster høyden umiddelbart mens brukeren skriver
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+      }
+    }
+
+    // Oppdater state for agendapunkter
     const oppdaterteAgendaPunkter = [...agendaPunkter];
     oppdaterteAgendaPunkter[index][felt] = verdi;
+    
+    // Lagre høyde for agendapunkt i lokalt minne hvis relevant
+    if (felt === 'punkt' && verdi.length > 0) {
+      // Prøv å hente textarea-elementer
+      const desktopTextarea = document.getElementById(`agendapunkt-${index}`);
+      const mobileTextarea = document.getElementById(`agendapunkt-mobile-${index}`);
+      
+      // Lagre høyde for desktop og mobile (bruker samme høyde)
+      if (desktopTextarea) {
+        const height = desktopTextarea.scrollHeight;
+        localStorage.setItem(`agendaPunkt_${index}_height`, height);
+      } else if (mobileTextarea) {
+        const height = mobileTextarea.scrollHeight;
+        localStorage.setItem(`agendaPunkt_${index}_height`, height);
+      }
+    }
+    
+    // Kjør setAgendaPunkter umiddelbart uten debouncing for bedre respons
     setAgendaPunkter(oppdaterteAgendaPunkter);
+    
+    // Marker som endret for auto-save systemet
     setHarEndringer(true);
     setSisteEndring(new Date());
   };
+
+  // Helper for å laste inn lagret høyde for et tekstfelt
+  const getStoredHeight = (index) => {
+    // Prøv å hente lagret høyde fra localStorage
+    const storedHeight = localStorage.getItem(`agendaPunkt_${index}_height`);
+    
+    // Hvis vi har en lagret høyde, returner den
+    if (storedHeight) {
+      return `${storedHeight}px`;
+    }
+    
+    // Hvis ikke, beregn en fornuftig standardhøyde basert på innholdslengde
+    const punktInnhold = agendaPunkter[index]?.punkt || '';
+    const antallTegn = punktInnhold.length;
+    const antallLinjer = Math.max(1, Math.ceil(antallTegn / 40)); // antatt ca 40 tegn per linje
+    
+    // Grunnhøyde + ekstra høyde per linje
+    const beregnetHoyde = 40 + ((antallLinjer - 1) * 24);
+    
+    // Returner beregnet høyde som string med px
+    return `${beregnetHoyde}px`;
+  };
+
+  // Setup auto-resize for textarea ved første render
+  useEffect(() => {
+    agendaPunkter.forEach((_, index) => {
+      const textarea = document.getElementById(`agendapunkt-${index}`);
+      if (textarea) {
+        const storedHeight = getStoredHeight(index);
+        if (storedHeight !== 'auto') {
+          textarea.style.height = `${storedHeight}px`;
+        }
+      }
+    });
+  }, [agendaPunkter.length]);
+
+  useEffect(() => {
+    // Når agenda punkter lastes inn, ventetid for å sikre at DOM er klar
+    if (agendaPunkter && agendaPunkter.length > 0) {
+      setTimeout(() => {
+        // Gå gjennom hvert agendapunkt og oppdater høyden
+        agendaPunkter.forEach((_, index) => {
+          const storedHeight = localStorage.getItem(`agendaPunkt_${index}_height`);
+          if (storedHeight) {
+            const desktopTextarea = document.getElementById(`agendapunkt-${index}`);
+            const mobileTextarea = document.getElementById(`agendapunkt-mobile-${index}`);
+            
+            if (desktopTextarea) {
+              desktopTextarea.style.height = `${storedHeight}px`;
+              // Juster om nødvendig for å matche faktisk innhold
+              desktopTextarea.style.height = 'auto';
+              desktopTextarea.style.height = Math.max(desktopTextarea.scrollHeight, storedHeight) + 'px';
+            }
+            
+            if (mobileTextarea) {
+              mobileTextarea.style.height = `${storedHeight}px`;
+              // Juster om nødvendig for å matche faktisk innhold
+              mobileTextarea.style.height = 'auto';
+              mobileTextarea.style.height = Math.max(mobileTextarea.scrollHeight, storedHeight) + 'px';
+            }
+          }
+        });
+      }, 500); // Kort forsinkelse for å sikre at DOM er ferdig rendret
+    }
+  }, [agendaPunkter]);
 
   const beregnTidspunkt = (index) => {
     if (index === 0) return startTid;
@@ -151,14 +247,18 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                               <div className="relative flex items-center rounded-md shadow-sm border border-gray-300 focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white">
                                 <span className="pl-2 text-gray-500"><ListChecks size={16} /></span>
                                 <textarea
+                                  id={`agendapunkt-${index}`}
                                   value={punkt.punkt}
                                   onChange={(e) => handleAgendaEndring(index, 'punkt', e.target.value)}
-                                  className="w-full pl-2 py-2 rounded-md focus:outline-none resize-none"
+                                  className="w-full pl-2 py-2 rounded-md focus:outline-none resize-none agenda-input"
                                   placeholder="Beskriv agendapunktet"
                                   rows="1"
                                   onInput={e => {
                                     e.target.style.height = 'auto';
-                                    e.target.style.height = e.target.scrollHeight + 'px';
+                                    e.target.style.height = (e.target.scrollHeight) + 'px';
+                                  }}
+                                  style={{ 
+                                    height: getStoredHeight(index)
                                   }}
                                   disabled={disabled}
                                 />
@@ -215,11 +315,19 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
                                   <span>Agendapunkt</span>
                                 </label>
                                 <textarea
+                                  id={`agendapunkt-mobile-${index}`}
                                   value={punkt.punkt}
                                   onChange={(e) => handleAgendaEndring(index, 'punkt', e.target.value)}
-                                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-base"
-                                  rows="3"
+                                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 resize-none agenda-input"
+                                  rows="2"
                                   placeholder="Beskriv agendapunktet"
+                                  onInput={e => {
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = (e.target.scrollHeight) + 'px';
+                                  }}
+                                  style={{ 
+                                    height: getStoredHeight(index)
+                                  }}
                                   disabled={disabled}
                                 />
                               </div>
