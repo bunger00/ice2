@@ -558,10 +558,38 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [showDrawingEditor, setShowDrawingEditor] = useState(false);
 
-  // Oppdater visVedlegg funksjonen
+  // Oppdater visVedlegg funksjonen for bedre PDF-håndtering
   const visVedlegg = (vedlegg, agendaIndex, vedleggIndex) => {
-    // Sett aktivt vedlegg
-    setActiveAttachment({...vedlegg, agendaIndex, vedleggIndex});
+    // Hvis det er en PDF, sjekk og reparer data URL
+    if (vedlegg.mimeType === 'application/pdf' && vedlegg.data) {
+      // Sjekk om dataURL har riktig prefix
+      if (!vedlegg.data.startsWith('data:application/pdf;base64,')) {
+        // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
+        const base64Data = vedlegg.data.includes('base64,') 
+          ? vedlegg.data.split('base64,')[1] 
+          : vedlegg.data;
+        
+        // Oppdater vedlegget med riktig data URL format
+        const oppdaterteAgendaPunkter = [...agendaStatus];
+        oppdaterteAgendaPunkter[agendaIndex].vedlegg[vedleggIndex].data = `data:application/pdf;base64,${base64Data}`;
+        setAgendaStatus(oppdaterteAgendaPunkter);
+        
+        // Sett aktivt vedlegg med reparert data
+        setActiveAttachment({
+          ...vedlegg, 
+          data: `data:application/pdf;base64,${base64Data}`,
+          agendaIndex, 
+          vedleggIndex
+        });
+      } else {
+        // Hvis formatet allerede er riktig
+        setActiveAttachment({...vedlegg, agendaIndex, vedleggIndex});
+      }
+    } else {
+      // For andre typer vedlegg
+      setActiveAttachment({...vedlegg, agendaIndex, vedleggIndex});
+    }
+    
     setShowAttachmentModal(true);
     setShowDrawingEditor(false);
   };
@@ -997,14 +1025,14 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     setShowSurveyResults(true);
   };
 
-  // Oppdater handleFileUpload funksjonen
+  // Oppdater handleFileUpload funksjonen for bedre PDF-håndtering
   const handleFileUpload = (index, event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     // Vi støtter bildefiler og PDF-dokumenter
     const isSupportedFileType = file.type.startsWith('image/') || file.type === 'application/pdf' || 
-                             file.type === 'application/msword' || 
+                             file.type === 'application/msword' ||
                              file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
                              file.type === 'application/vnd.ms-excel' ||
                              file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
@@ -1020,36 +1048,46 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     const reader = new FileReader();
     reader.onload = async (e) => {
       let fileData = e.target.result;
-      
+
       // Komprimer bildet hvis det er et bilde
       if (file.type.startsWith('image/')) {
         fileData = await compressImage(fileData);
       }
-      
+
       const oppdaterteAgendaPunkter = [...agendaStatus];
-      
+
       // Hvis vedlegg-arrayet ikke finnes, initialiser det
       if (!oppdaterteAgendaPunkter[index].vedlegg) {
         oppdaterteAgendaPunkter[index].vedlegg = [];
       }
-      
+
+      // For PDF-filer, sikre at data URL har riktig format og MIME-type
+      if (file.type === 'application/pdf') {
+        // Sjekk om dataURL har riktig prefix
+        if (!fileData.startsWith('data:application/pdf;base64,')) {
+          // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
+          const base64Data = fileData.includes('base64,') 
+            ? fileData.split('base64,')[1] 
+            : fileData;
+          fileData = `data:application/pdf;base64,${base64Data}`;
+        }
+        console.log('PDF-fil lastet opp med MIME-type:', file.type);
+      }
+
       // Legger til det nye vedlegget
       oppdaterteAgendaPunkter[index].vedlegg.push({
         type: file.type.startsWith('image/') ? 'image' : 'document',
         navn: file.name,
         data: fileData,
-        mimeType: file.type
+        mimeType: file.type,
+        lastModified: file.lastModified || Date.now() // Lagre lastModified for å spore endringer
       });
       
       setAgendaStatus(oppdaterteAgendaPunkter);
     };
-    
-    if (file.type.startsWith('image/')) {
-      reader.readAsDataURL(file); // Leser bilde som data URL
-    } else {
-      // For dokumenter, lagre som data URL men med filinfo
-      reader.readAsDataURL(file);
-    }
+
+    // For alle filtyper, bruk readAsDataURL
+    reader.readAsDataURL(file);
   };
 
   // Last inn aktivt punkt fra moteInfo når komponenten lastes
@@ -1075,7 +1113,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
 
   // Oppdater initialiseringen av agendaStatus for å inkludere alle nødvendige felter
   useEffect(() => {
-    console.log('Agendapunkter før oppdatering:', agendaPunkter.map(p => ({ 
+    console.log('Agendapunkter før oppdatering:', agendaPunkter.map(p => ({
       punkt: p.punkt,
       ferdig: p.ferdig,
       startTid: p.startTid,
@@ -1084,14 +1122,14 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     
     // Initialiser agendaStatus med verdier fra agendaPunkter
     setAgendaStatus(
-      agendaPunkter.map(a => ({ 
-        ...a, 
+      agendaPunkter.map(a => ({
+        ...a,
         id: a.id || generateUniqueId(),
-        kommentar: a.kommentar || '', 
+        kommentar: a.kommentar || '',
         startTid: a.startTid || null,
         ferdig: a.ferdig || false,
         tidBrukt: a.tidBrukt || null,
-        vedlegg: a.vedlegg || [],
+        vedlegg: repairPDFData(a.vedlegg) || [], // Reparer PDF-data i vedlegg
         erLast: a.erLast || false,
         notater: a.notater || '',
         beslutninger: a.beslutninger || '',
@@ -1099,6 +1137,75 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
       }))
     );
   }, [agendaPunkter]);
+
+  // Funksjon for å reparere PDF-data i vedlegg
+  const repairPDFData = (vedlegg) => {
+    if (!vedlegg || !Array.isArray(vedlegg)) return vedlegg;
+    
+    return vedlegg.map(v => {
+      // Hvis det er en PDF-fil, sjekk og reparer data URL
+      if (v.mimeType === 'application/pdf' && v.data) {
+        // Sjekk om dataURL har riktig prefix
+        if (!v.data.startsWith('data:application/pdf;base64,')) {
+          // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
+          const base64Data = v.data.includes('base64,') 
+            ? v.data.split('base64,')[1] 
+            : v.data;
+          return {
+            ...v,
+            data: `data:application/pdf;base64,${base64Data}`
+          };
+        }
+      }
+      return v;
+    });
+  };
+
+  // Funksjon for å reparere PDF-data i alle agendapunkter
+  const repairAllPDFData = () => {
+    const oppdaterteAgendaPunkter = [...agendaStatus];
+    let harEndringer = false;
+    
+    // Gå gjennom alle agendapunkter og vedlegg
+    oppdaterteAgendaPunkter.forEach((punkt, punktIndex) => {
+      if (punkt.vedlegg && Array.isArray(punkt.vedlegg)) {
+        punkt.vedlegg.forEach((vedlegg, vedleggIndex) => {
+          // Hvis det er en PDF, sjekk og reparer data URL
+          if (vedlegg.mimeType === 'application/pdf' && vedlegg.data) {
+            // Sjekk om dataURL har riktig prefix
+            if (!vedlegg.data.startsWith('data:application/pdf;base64,')) {
+              // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
+              const base64Data = vedlegg.data.includes('base64,') 
+                ? vedlegg.data.split('base64,')[1] 
+                : vedlegg.data;
+              
+              // Oppdater vedlegget med riktig data URL format
+              oppdaterteAgendaPunkter[punktIndex].vedlegg[vedleggIndex].data = 
+                `data:application/pdf;base64,${base64Data}`;
+              
+              harEndringer = true;
+            }
+          }
+        });
+      }
+    });
+    
+    // Oppdater state hvis det er gjort endringer
+    if (harEndringer) {
+      console.log('PDF-data reparert i agendapunkter');
+      setAgendaStatus(oppdaterteAgendaPunkter);
+    }
+  };
+
+  // Kjør PDF-reparasjon når komponenten lastes
+  useEffect(() => {
+    // Vent litt for å sikre at agendaStatus er initialisert
+    const timer = setTimeout(() => {
+      repairAllPDFData();
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className={`min-h-screen bg-gray-100 py-4 sm:py-8 ${isLocked ? 'opacity-75' : ''}`}>
@@ -1189,11 +1296,29 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                       />
                     </div>
                   ) : activeAttachment.mimeType === 'application/pdf' ? (
-                    <iframe
-                      src={activeAttachment.data}
-                      className="w-full h-[80vh]"
-                      title={activeAttachment.navn}
-                    ></iframe>
+                    <div className="w-full h-[80vh] flex flex-col">
+                      {/* Sjekk om PDF-dataen har riktig format */}
+                      {activeAttachment.data && activeAttachment.data.startsWith('data:application/pdf;base64,') ? (
+                        <iframe
+                          src={activeAttachment.data}
+                          className="w-full h-full border-0"
+                          title={activeAttachment.navn}
+                        ></iframe>
+                      ) : (
+                        <div className="p-8 flex flex-col items-center justify-center h-full">
+                          <FileText size={64} className="text-gray-400 mb-4" />
+                          <p className="mb-4 text-gray-700">PDF-filen kan ikke forhåndsvises i dette formatet.</p>
+                          <a
+                            href={activeAttachment.data}
+                            download={activeAttachment.navn}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+                          >
+                            <Download size={16} />
+                            Last ned PDF-filen
+                          </a>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div className="p-8 flex flex-col items-center justify-center">
                       <FileText size={64} className="text-gray-400 mb-4" />
