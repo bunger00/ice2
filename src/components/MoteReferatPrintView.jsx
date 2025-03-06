@@ -705,7 +705,7 @@ function MoteReferatPrintView({ moteInfo, deltakere, agendaPunkter, children, bu
           </>
         )
       )}
-    </button>
+      </button>
   );
 }
 

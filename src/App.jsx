@@ -136,6 +136,7 @@ function App() {
           hensikt: String(gjennomforingsData.hensikt || ''),
           mal: String(gjennomforingsData.mal || ''),
           erGjennomfort: true,
+          aktivtPunkt: gjennomforingsData.aktivtPunkt,
           gjennomforingsStatus: {
             statusOppnadd: String(gjennomforingsData.gjennomforingsStatus?.statusOppnadd || ''),
             nyDato: String(gjennomforingsData.gjennomforingsStatus?.nyDato || ''),
