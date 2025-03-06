@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
-import { PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut, Share, Save, Mail, QrCode, Printer } from 'lucide-react';
+import { PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut, Share, Save } from 'lucide-react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import MoteInformasjon from './components/MoteInformasjon';
 import Deltakere from './components/Deltakere';
@@ -350,7 +350,7 @@ function App() {
     setErGjennomfort(moteData.erGjennomfort || false);
     setVisLagredeMoter(false);
     setVisMoteSkjema(true);
-
+    
     // Start historikk-lytting
     const unsubscribeHistorikk = await hentHistorikk(moteData.id);
     
@@ -582,34 +582,6 @@ function App() {
     }
   };
 
-  // Legg til en funksjon for å hente historikk
-  const hentHistorikk = async (moteId) => {
-    try {
-      const historikkRef = collection(db, 'moter', moteId, 'historikk');
-      const q = query(historikkRef, orderBy('tidspunkt', 'desc'));
-      
-      // Sett opp real-time lytter for historikk
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const historikkData = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          historikkData.push({
-            id: doc.id,
-            tidspunkt: data.tidspunkt?.toDate() || new Date(),
-            endretAv: data.endretAv || 'Ukjent',
-            type: data.type,
-            endringer: data.endringer
-          });
-        });
-      });
-      
-      return unsubscribe;
-    } catch (error) {
-      console.error('Feil ved henting av historikk:', error);
-      return null;
-    }
-  };
-
   // Lytt til endringer i aktivt møte
   useEffect(() => {
     if (!moteInfo.id) return;
@@ -655,6 +627,164 @@ function App() {
     // Cleanup listener når møtet endres eller komponenten unmountes
     return () => unsubscribe();
   }, [moteInfo.id]);
+
+  // Legg til en funksjon for umiddelbar oppdatering
+  const oppdaterMoteData = async (oppdateringer) => {
+    if (!moteInfo.id) return;
+
+    try {
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      const oppdateringer = {
+        tema: oppdateringer.tema,
+        dato: oppdateringer.dato,
+        startTid: oppdateringer.startTid,
+        innkallingsDato: oppdateringer.innkallingsDato,
+        eier: oppdateringer.eier,
+        fasilitator: oppdateringer.fasilitator,
+        referent: oppdateringer.referent,
+        hensikt: oppdateringer.hensikt,
+        mal: oppdateringer.mal,
+        sistOppdatert: serverTimestamp()
+      };
+
+      updateDoc(moteRef, oppdateringer);
+      // Ikke sett state direkte - la onSnapshot håndtere det
+    } catch (error) {
+      console.error('Feil ved oppdatering:', error);
+    }
+  };
+
+  // Oppdater hvordan vi håndterer endringer i møtedata
+  const handleMoteInfoChange = (oppdatertMoteInfo) => {
+    if (!moteInfo.id) return;
+
+    try {
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      const oppdateringer = {
+        tema: oppdatertMoteInfo.tema,
+        dato: oppdatertMoteInfo.dato,
+        startTid: oppdatertMoteInfo.startTid,
+        innkallingsDato: oppdatertMoteInfo.innkallingsDato,
+        eier: oppdatertMoteInfo.eier,
+        fasilitator: oppdatertMoteInfo.fasilitator,
+        referent: oppdatertMoteInfo.referent,
+        hensikt: oppdatertMoteInfo.hensikt,
+        mal: oppdatertMoteInfo.mal,
+        sistOppdatert: serverTimestamp()
+      };
+
+      updateDoc(moteRef, oppdateringer);
+      // Ikke sett state direkte - la onSnapshot håndtere det
+    } catch (error) {
+      console.error('Feil ved oppdatering:', error);
+    }
+  };
+
+  // Oppdater handleDeltakereChange
+  const handleDeltakereChange = (oppdaterteDeltakere) => {
+    if (!moteInfo.id) return;
+
+    try {
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      updateDoc(moteRef, {
+        deltakere: oppdaterteDeltakere.map(d => ({
+          fagFunksjon: d.fagFunksjon || '',
+          navn: d.navn || '',
+          epost: d.epost || '',
+          forberedelser: d.forberedelser || '',
+          utfortStatus: d.utfortStatus || 'none',
+          oppmoteStatus: d.oppmoteStatus || 'none'
+        })),
+        sistOppdatert: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Feil ved oppdatering av deltakere:', error);
+    }
+  };
+
+  // Oppdater handleAgendaChange
+  const handleAgendaChange = (oppdatertAgenda) => {
+    if (!moteInfo.id) return;
+
+    try {
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      updateDoc(moteRef, {
+        agendaPunkter: oppdatertAgenda.map(a => ({
+          // Grunnleggende felter
+          punkt: a.punkt || '',
+          ansvarlig: a.ansvarlig || '',
+          varighet: a.varighet || 15,
+          fullfort: a.fullfort || false,
+          
+          // Gjennomføringsdata
+          startTid: a.startTid || null,
+          ferdig: a.ferdig || false,
+          tidBrukt: a.tidBrukt || null,
+          
+          // Kommentarer og notater
+          kommentar: a.kommentar || '',
+          notater: a.notater || '',
+          beslutninger: a.beslutninger || '',
+          
+          // Vedlegg
+          vedlegg: Array.isArray(a.vedlegg) ? a.vedlegg.map(v => ({
+            type: v.type,
+            data: v.data,
+            timestamp: v.timestamp,
+            navn: v.navn,
+            id: v.id
+          })) : [],
+          
+          // Aksjoner
+          aksjoner: Array.isArray(a.aksjoner) ? a.aksjoner.map(aksjon => ({
+            ansvarlig: aksjon.ansvarlig,
+            beskrivelse: aksjon.beskrivelse,
+            frist: aksjon.frist,
+            opprettet: aksjon.opprettet,
+            status: aksjon.status
+          })) : [],
+          
+          // Status
+          erLast: a.erLast || false
+        })),
+        sistOppdatert: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Feil ved oppdatering av agenda:', error);
+    }
+  };
+
+  // Legg til en funksjon for å hente historikk
+  const hentHistorikk = async (moteId) => {
+    if (!moteId) return;
+
+    try {
+      const historikkRef = collection(db, 'moter', moteId, 'historikk');
+      const q = query(historikkRef, orderBy('tidspunkt', 'desc'));
+      
+      // Sett opp real-time lytter for historikk
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const historikkData = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          historikkData.push({
+            id: doc.id,
+            tidspunkt: data.tidspunkt?.toDate() || new Date(),
+            endretAv: data.endretAv,
+            endringer: {
+              tema: data.tema,
+              deltakere: data.deltakere,
+              agendaPunkter: data.agendaPunkter
+            }
+          });
+        });
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('Feil ved henting av historikk:', error);
+    }
+  };
 
   const handleManuellLagring = async () => {
     try {
@@ -761,6 +891,43 @@ function App() {
       setToastMessage('Kunne ikke lagre møtet. Sjekk at du er logget inn og har tilgang.');
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
+    }
+  };
+
+  // Oppdater genererDelingsLink funksjonen
+  const genererDelingsLink = async () => {
+    try {
+      if (!moteInfo.id) {
+        alert('Du må lagre møtet først før du kan dele det');
+        return;
+      }
+
+      // Generer en tilfeldig aksesstoken
+      const aksessToken = Math.random().toString(36).substring(2, 15) + 
+                         Math.random().toString(36).substring(2, 15);
+
+      // Oppdater møtet med aksesstoken
+      const moteRef = doc(db, 'moter', moteInfo.id);
+      await updateDoc(moteRef, {
+        aksessToken,
+        erDelt: true
+      });
+
+      // Generer full URL
+      const baseUrl = window.location.origin;
+      const delingsUrl = `${baseUrl}/delt/${moteInfo.id}/${aksessToken}`;
+
+      // Kopier til utklippstavle
+      await navigator.clipboard.writeText(delingsUrl);
+      
+      // Vis bekreftelse med Toast
+      setToastMessage('Delingslink kopiert til utklippstavle!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+
+    } catch (error) {
+      console.error('Feil ved generering av delingslink:', error);
+      alert('Kunne ikke generere delingslink. Vennligst prøv igjen.');
     }
   };
 
