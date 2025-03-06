@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 // Din Firebase-konfigurasjon
@@ -7,7 +7,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCro9RNjXYTPEp5iYecCuIeKk8VgAyyS8g",
   authDomain: "ice-meeting.firebaseapp.com",
   projectId: "ice-meeting",
-  storageBucket: "ice-meeting.firebasestorage.app",
+  storageBucket: "ice-meeting.appspot.com",
   messagingSenderId: "922747891625",
   appId: "1:922747891625:web:612588d32778c9ebd75eb8",
   measurementId: "G-V8LM51508T"
@@ -17,6 +17,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// Google Auth Provider
+const googleProvider = new GoogleAuthProvider();
 
 // Enable offline persistence
 enableIndexedDbPersistence(db)
@@ -39,7 +42,7 @@ onAuthStateChanged(auth, (user) => {
 
 console.log('Firebase initialized successfully');
 
-export { auth, db };
+export { auth, db, googleProvider };
 
 // Fjern analytics midlertidig
 // import { getAnalytics } from "firebase/analytics";
