@@ -432,81 +432,297 @@ function MoteReferatPrintView({ moteInfo, deltakere, agendaPunkter, children, bu
 
           yPos += rowHeight;
 
-          // Hvis det finnes aksjoner eller vedlegg
-          if ((punkt.aksjoner && punkt.aksjoner.length > 0) || (punkt.vedlegg && punkt.vedlegg.length > 0)) {
-            const ekstraRadHoyde = 50; // Økt høyde for bedre plass
+          // Hvis det finnes beslutninger, aksjoner eller vedlegg
+          if ((punkt.beslutninger && punkt.beslutninger.trim()) || (punkt.aksjoner && punkt.aksjoner.length > 0) || (punkt.vedlegg && punkt.vedlegg.length > 0)) {
+            // Beregn nødvendig høyde basert på innhold
+            const harBeslutninger = punkt.beslutninger && punkt.beslutninger.trim();
+            const harAksjoner = punkt.aksjoner && punkt.aksjoner.length > 0;
+            const harVedlegg = punkt.vedlegg && punkt.vedlegg.length > 0;
             
-            // Tegn hovedramme for rad 2
-            doc.setDrawColor(200, 200, 200);
-            doc.rect(margin, yPos, contentWidth, ekstraRadHoyde, 'S');
+            // Legg til ny side hvis det er lite plass igjen
+            if (yPos > doc.internal.pageSize.height - 80) {
+              doc.addPage();
+              yPos = 20;
+            }
             
-            // Del opp i to kolonner med vertikal linje
-            const aksjonerBredde = contentWidth * 0.6;
-            const vedleggBredde = contentWidth * 0.4;
-            doc.line(
-              margin + aksjonerBredde,
-              yPos,
-              margin + aksjonerBredde,
-              yPos + ekstraRadHoyde
-            );
-
-            // Aksjoner seksjon (venstre kolonne)
-            if (punkt.aksjoner && punkt.aksjoner.length > 0) {
-              // Overskrift for aksjoner
+            // Struktur: Beslutninger og aksjoner øverst, skjermbilder nederst hvis det finnes
+            let strukturHoyde = 0;
+            
+            // Overskrift med grå bakgrunn
+            doc.setFillColor(240, 240, 240);
+            doc.rect(margin, yPos, contentWidth, 8, 'F');
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(10);
+            doc.text("Detaljer for agendapunkt: " + punkt.punkt.substring(0, 40) + (punkt.punkt.length > 40 ? "..." : ""), margin + 3, yPos + 5.5);
+            yPos += 8;
+            
+            // Fleksibel layout med to kolonner - beslutninger og aksjoner side ved side
+            const toKolonnerHoyde = 80; // Startverdi, justeres basert på innhold
+            
+            // Total bredde for to kolonner
+            const totalBredde = contentWidth;
+            
+            // Hvis både beslutninger og aksjoner finnes, vis i to kolonner
+            if (harBeslutninger && harAksjoner) {
+              // Tegn hovedramme for rad med beslutninger og aksjoner
+              doc.setDrawColor(200, 200, 200);
+              doc.rect(margin, yPos, totalBredde, toKolonnerHoyde, 'S');
+              
+              // Del opp i to kolonner med vertikal linje
+              const beslutningerBredde = totalBredde * 0.5;
+              const aksjonerBredde = totalBredde * 0.5;
+              doc.line(
+                margin + beslutningerBredde,
+                yPos,
+                margin + beslutningerBredde,
+                yPos + toKolonnerHoyde
+              );
+              
+              // BESLUTNINGER SEKSJON (venstre kolonne)
+              doc.setFillColor(245, 245, 245);
+              doc.rect(margin + 1, yPos + 1, beslutningerBredde - 2, 7, 'F');
+              
               doc.setFont(undefined, 'bold');
               doc.setFontSize(9);
-              doc.text("Aksjoner", margin + 3, yPos + 7);
-
-              // Aksjonstabell header med grå bakgrunn
-              const aksjonHeaderY = yPos + 10;
+              doc.text("Beslutninger", margin + 4, yPos + 6);
+              
+              // Beslutningers innhold
+              doc.setFont(undefined, 'normal');
+              doc.setFontSize(8);
+              const beslutningsLinjer = doc.splitTextToSize(punkt.beslutninger || "", beslutningerBredde - 8);
+              beslutningsLinjer.forEach((linje, i) => {
+                doc.text(linje, margin + 4, yPos + 14 + (i * 4));
+              });
+              
+              // AKSJONER SEKSJON (høyre kolonne)
               doc.setFillColor(245, 245, 245);
-              doc.rect(margin + 2, aksjonHeaderY, aksjonerBredde - 4, 8, 'F');
-
+              doc.rect(margin + beslutningerBredde + 1, yPos + 1, aksjonerBredde - 2, 7, 'F');
+              
+              doc.setFont(undefined, 'bold');
+              doc.setFontSize(9);
+              doc.text("Aksjoner", margin + beslutningerBredde + 4, yPos + 6);
+              
+              // Aksjonstabell header
+              const aksjonHeaderY = yPos + 11;
+              doc.setFillColor(245, 245, 245);
+              doc.rect(margin + beslutningerBredde + 2, aksjonHeaderY, aksjonerBredde - 4, 6, 'F');
+              
               const kolonnebredder = [
                 (aksjonerBredde - 4) * 0.5,
                 (aksjonerBredde - 4) * 0.25,
                 (aksjonerBredde - 4) * 0.25
               ];
-
+              
               // Tegn aksjonstabell header
               doc.setFont(undefined, 'bold');
+              doc.setFontSize(7);
+              doc.text("Aksjon", margin + beslutningerBredde + 4, aksjonHeaderY + 4);
+              doc.text("Ansvarlig", margin + beslutningerBredde + 4 + kolonnebredder[0], aksjonHeaderY + 4);
+              doc.text("Frist", margin + beslutningerBredde + 4 + kolonnebredder[0] + kolonnebredder[1], aksjonHeaderY + 4);
+              
+              // Vertikale linjer i aksjonstabell header
+              doc.line(
+                margin + beslutningerBredde + 2 + kolonnebredder[0],
+                aksjonHeaderY,
+                margin + beslutningerBredde + 2 + kolonnebredder[0],
+                aksjonHeaderY + 6
+              );
+              doc.line(
+                margin + beslutningerBredde + 2 + kolonnebredder[0] + kolonnebredder[1],
+                aksjonHeaderY,
+                margin + beslutningerBredde + 2 + kolonnebredder[0] + kolonnebredder[1],
+                aksjonHeaderY + 6
+              );
+              
+              // Aksjonrader
+              let currentY = aksjonHeaderY + 6;
+              let aksjonContentHeight = 0;
+              
+              if (punkt.aksjoner.length === 0) {
+                const radHoyde = 6;
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(margin + beslutningerBredde + 2, currentY, aksjonerBredde - 4, radHoyde, 'S');
+                
+                doc.setFont(undefined, 'italic');
+                doc.setFontSize(7);
+                doc.text("Ingen aksjoner registrert", margin + beslutningerBredde + 4, currentY + 4);
+                
+                currentY += radHoyde;
+                aksjonContentHeight += radHoyde;
+              } else {
+                punkt.aksjoner.forEach((aksjon) => {
+                  const radHoyde = 7;
+                  doc.setDrawColor(200, 200, 200);
+                  doc.rect(margin + beslutningerBredde + 2, currentY, aksjonerBredde - 4, radHoyde, 'S');
+                  
+                  doc.setFont(undefined, 'normal');
+                  doc.setFontSize(7);
+                  
+                  // Beregn tekst for å unngå overlapping
+                  const beskrivelse = doc.splitTextToSize(aksjon.beskrivelse, kolonnebredder[0] - 5);
+                  doc.text(beskrivelse, margin + beslutningerBredde + 4, currentY + 4);
+                  doc.text(aksjon.ansvarlig || '', margin + beslutningerBredde + 4 + kolonnebredder[0], currentY + 4);
+                  
+                  // Formater dato
+                  const fristDato = aksjon.frist ? new Date(aksjon.frist).toLocaleDateString('no-NO') : '';
+                  doc.text(
+                    fristDato,
+                    margin + beslutningerBredde + 4 + kolonnebredder[0] + kolonnebredder[1],
+                    currentY + 4
+                  );
+                  
+                  // Vertikale linjer i aksjonrad
+                  doc.line(
+                    margin + beslutningerBredde + 2 + kolonnebredder[0],
+                    currentY,
+                    margin + beslutningerBredde + 2 + kolonnebredder[0],
+                    currentY + radHoyde
+                  );
+                  doc.line(
+                    margin + beslutningerBredde + 2 + kolonnebredder[0] + kolonnebredder[1],
+                    currentY,
+                    margin + beslutningerBredde + 2 + kolonnebredder[0] + kolonnebredder[1],
+                    currentY + radHoyde
+                  );
+                  
+                  currentY += radHoyde;
+                  aksjonContentHeight += radHoyde;
+                });
+              }
+              
+              // Juster totalhøyden basert på innhold
+              const beslutningerHoyde = Math.max(beslutningsLinjer.length * 4 + 14, 20);
+              const aksjonerHoyde = Math.max(aksjonContentHeight + 17, 20);
+              const justerteHoyde = Math.max(beslutningerHoyde, aksjonerHoyde);
+              
+              // Om nødvendig, juster høyden på rammen
+              if (justerteHoyde > toKolonnerHoyde) {
+                // Tegn rammen på nytt med riktig høyde
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(margin, yPos, totalBredde, justerteHoyde, 'S');
+                
+                // Tegn vertikal skillelinje
+                doc.line(
+                  margin + beslutningerBredde,
+                  yPos,
+                  margin + beslutningerBredde,
+                  yPos + justerteHoyde
+                );
+                
+                // Oppdater strukturhøyde
+                strukturHoyde = justerteHoyde;
+              } else {
+                strukturHoyde = toKolonnerHoyde;
+              }
+            } 
+            // Hvis bare beslutninger finnes
+            else if (harBeslutninger) {
+              // Tegn hovedramme for beslutninger
+              doc.setDrawColor(200, 200, 200);
+              doc.rect(margin, yPos, totalBredde, toKolonnerHoyde, 'S');
+              
+              // BESLUTNINGER SEKSJON 
+              doc.setFillColor(245, 245, 245);
+              doc.rect(margin + 1, yPos + 1, totalBredde - 2, 7, 'F');
+              
+              doc.setFont(undefined, 'bold');
+              doc.setFontSize(9);
+              doc.text("Beslutninger", margin + 4, yPos + 6);
+              
+              // Beslutningers innhold
+              doc.setFont(undefined, 'normal');
               doc.setFontSize(8);
-              doc.text("Aksjon", margin + 5, aksjonHeaderY + 6);
-              doc.text("Ansvarlig", margin + 5 + kolonnebredder[0], aksjonHeaderY + 6);
-              doc.text("Frist", margin + 5 + kolonnebredder[0] + kolonnebredder[1], aksjonHeaderY + 6);
-
+              const beslutningsLinjer = doc.splitTextToSize(punkt.beslutninger || "", totalBredde - 8);
+              beslutningsLinjer.forEach((linje, i) => {
+                doc.text(linje, margin + 4, yPos + 14 + (i * 4));
+              });
+              
+              // Juster totalhøyden basert på innhold
+              const beslutningerHoyde = Math.max(beslutningsLinjer.length * 4 + 14, 20);
+              
+              // Om nødvendig, juster høyden på rammen
+              if (beslutningerHoyde > toKolonnerHoyde) {
+                // Tegn rammen på nytt med riktig høyde
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(margin, yPos, totalBredde, beslutningerHoyde, 'S');
+                
+                // Oppdater strukturhøyde
+                strukturHoyde = beslutningerHoyde;
+              } else {
+                strukturHoyde = toKolonnerHoyde;
+              }
+            }
+            // Hvis bare aksjoner finnes
+            else if (harAksjoner) {
+              // Tegn hovedramme for aksjoner
+              doc.setDrawColor(200, 200, 200);
+              doc.rect(margin, yPos, totalBredde, toKolonnerHoyde, 'S');
+              
+              // AKSJONER SEKSJON
+              doc.setFillColor(245, 245, 245);
+              doc.rect(margin + 1, yPos + 1, totalBredde - 2, 7, 'F');
+              
+              doc.setFont(undefined, 'bold');
+              doc.setFontSize(9);
+              doc.text("Aksjoner", margin + 4, yPos + 6);
+              
+              // Aksjonstabell header
+              const aksjonHeaderY = yPos + 11;
+              doc.setFillColor(245, 245, 245);
+              doc.rect(margin + 2, aksjonHeaderY, totalBredde - 4, 6, 'F');
+              
+              const kolonnebredder = [
+                (totalBredde - 4) * 0.5,
+                (totalBredde - 4) * 0.25,
+                (totalBredde - 4) * 0.25
+              ];
+              
+              // Tegn aksjonstabell header
+              doc.setFont(undefined, 'bold');
+              doc.setFontSize(7);
+              doc.text("Aksjon", margin + 4, aksjonHeaderY + 4);
+              doc.text("Ansvarlig", margin + 4 + kolonnebredder[0], aksjonHeaderY + 4);
+              doc.text("Frist", margin + 4 + kolonnebredder[0] + kolonnebredder[1], aksjonHeaderY + 4);
+              
               // Vertikale linjer i aksjonstabell header
               doc.line(
                 margin + 2 + kolonnebredder[0],
                 aksjonHeaderY,
                 margin + 2 + kolonnebredder[0],
-                aksjonHeaderY + 8
+                aksjonHeaderY + 6
               );
               doc.line(
                 margin + 2 + kolonnebredder[0] + kolonnebredder[1],
                 aksjonHeaderY,
                 margin + 2 + kolonnebredder[0] + kolonnebredder[1],
-                aksjonHeaderY + 8
+                aksjonHeaderY + 6
               );
-
+              
               // Aksjonrader
-              let currentY = aksjonHeaderY + 8;
+              let currentY = aksjonHeaderY + 6;
+              let aksjonContentHeight = 0;
+              
               punkt.aksjoner.forEach((aksjon) => {
-                const radHoyde = 6;
+                const radHoyde = 7;
                 doc.setDrawColor(200, 200, 200);
-                doc.rect(margin + 2, currentY, aksjonerBredde - 4, radHoyde, 'S');
+                doc.rect(margin + 2, currentY, totalBredde - 4, radHoyde, 'S');
                 
                 doc.setFont(undefined, 'normal');
-                doc.setFontSize(8);
-                const beskrivelse = doc.splitTextToSize(aksjon.beskrivelse, kolonnebredder[0] - 6);
-                doc.text(beskrivelse, margin + 5, currentY + 4);
-                doc.text(aksjon.ansvarlig, margin + 5 + kolonnebredder[0], currentY + 4);
+                doc.setFontSize(7);
+                
+                // Beregn tekst for å unngå overlapping
+                const beskrivelse = doc.splitTextToSize(aksjon.beskrivelse, kolonnebredder[0] - 5);
+                doc.text(beskrivelse, margin + 4, currentY + 4);
+                doc.text(aksjon.ansvarlig || '', margin + 4 + kolonnebredder[0], currentY + 4);
+                
+                // Formater dato
+                const fristDato = aksjon.frist ? new Date(aksjon.frist).toLocaleDateString('no-NO') : '';
                 doc.text(
-                  new Date(aksjon.frist).toLocaleDateString('no-NO'),
-                  margin + 5 + kolonnebredder[0] + kolonnebredder[1],
+                  fristDato,
+                  margin + 4 + kolonnebredder[0] + kolonnebredder[1],
                   currentY + 4
                 );
-
+                
                 // Vertikale linjer i aksjonrad
                 doc.line(
                   margin + 2 + kolonnebredder[0],
@@ -520,77 +736,163 @@ function MoteReferatPrintView({ moteInfo, deltakere, agendaPunkter, children, bu
                   margin + 2 + kolonnebredder[0] + kolonnebredder[1],
                   currentY + radHoyde
                 );
-
+                
                 currentY += radHoyde;
+                aksjonContentHeight += radHoyde;
               });
+              
+              // Juster totalhøyden basert på innhold
+              const aksjonerHoyde = Math.max(aksjonContentHeight + 17, 20);
+              
+              // Om nødvendig, juster høyden på rammen
+              if (aksjonerHoyde > toKolonnerHoyde) {
+                // Tegn rammen på nytt med riktig høyde
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(margin, yPos, totalBredde, aksjonerHoyde, 'S');
+                
+                // Oppdater strukturhøyde
+                strukturHoyde = aksjonerHoyde;
+              } else {
+                strukturHoyde = toKolonnerHoyde;
+              }
             }
-
-            // Vedlegg seksjon (høyre kolonne)
-            if (punkt.vedlegg && punkt.vedlegg.length > 0) {
-              // Overskrift for vedlegg
+            
+            // Oppdater yPos etter beslutninger/aksjoner-seksjonen
+            yPos += strukturHoyde + 5;
+            
+            // Hvis det finnes vedlegg og det er plass, legg til skjermbilder
+            if (harVedlegg) {
+              // Legg til ny side hvis det er lite plass igjen
+              if (yPos > doc.internal.pageSize.height - 60) {
+                doc.addPage();
+                yPos = 20;
+              }
+              
+              // SKJERMBILDER SEKSJON
+              const skjermbildeRammeHoyde = 90; // Standard høyde, justeres basert på antall og størrelse
+              
+              // Tegn hovedramme for skjermbilder
+              doc.setDrawColor(200, 200, 200);
+              doc.rect(margin, yPos, contentWidth, skjermbildeRammeHoyde, 'S');
+              
+              // Overskrift med grå bakgrunn
+              doc.setFillColor(245, 245, 245);
+              doc.rect(margin + 1, yPos + 1, contentWidth - 2, 7, 'F');
+              
               doc.setFont(undefined, 'bold');
               doc.setFontSize(9);
-              doc.text(
-                "Skjermbilder",
-                margin + aksjonerBredde + 3,
-                yPos + 7
-              );
-
-              let vedleggY = yPos + 12;
-              const maxVedleggPerRad = 2;
-              const vedleggPadding = 3;
-              const maxBildeHoyde = (ekstraRadHoyde - 15) / Math.ceil(punkt.vedlegg.length / maxVedleggPerRad);
-              const maxBildeBredde = (vedleggBredde - (vedleggPadding * 3)) / maxVedleggPerRad;
-
+              doc.text("Skjermbilder", margin + 4, yPos + 6);
+              
+              const vedleggPadding = 8;
+              const maxBildePerRad = Math.min(3, punkt.vedlegg.length); // Maksimalt 3 bilder per rad
+              
+              // Beregn bildestørrelse basert på antall bilder
+              const maxTilgjengeligBredde = contentWidth - (vedleggPadding * (maxBildePerRad + 1));
+              const bildeBredde = maxTilgjengeligBredde / maxBildePerRad;
+              
+              // Maksimal høyde per bilde for å bevare proporsjoner
+              const maxBildeHoyde = 50; // Standard maksimal høyde
+              
+              // Skjermbildene vises i grid-layout
+              let maxHoydeBrukt = 0;
+              
               // Behandle vedlegg
               for (let i = 0; i < punkt.vedlegg.length; i++) {
+                if (punkt.vedlegg[i].type !== 'image') continue; // Hopp over ikke-bilder
+                
                 const vedlegg = punkt.vedlegg[i];
                 try {
-                  const komprimertBilde = await compressImage(vedlegg.data, 600, 0.5);
+                  const komprimertBilde = await compressImage(vedlegg.data, 800, 0.5);
+                  
+                  // Last bildet for å beregne proporsjoner
+                  const tmpImg = new Image();
+                  await new Promise((resolve) => {
+                    tmpImg.onload = resolve;
+                    tmpImg.src = komprimertBilde;
+                  });
+                  
+                  // Beregn proporsjoner og faktisk størrelse
+                  const forhold = tmpImg.width / tmpImg.height;
+                  let faktiskBredde, faktiskHoyde;
+                  
+                  if (forhold >= 1) { // Bredt bilde
+                    faktiskBredde = Math.min(bildeBredde, tmpImg.width);
+                    faktiskHoyde = faktiskBredde / forhold;
+                    
+                    // Sjekk om høyden overstiger maksimal høyde
+                    if (faktiskHoyde > maxBildeHoyde) {
+                      faktiskHoyde = maxBildeHoyde;
+                      faktiskBredde = faktiskHoyde * forhold;
+                    }
+                  } else { // Høyt bilde
+                    faktiskHoyde = Math.min(maxBildeHoyde, tmpImg.height);
+                    faktiskBredde = faktiskHoyde * forhold;
+                    
+                    // Sjekk om bredden overstiger maksimal bredde
+                    if (faktiskBredde > bildeBredde) {
+                      faktiskBredde = bildeBredde;
+                      faktiskHoyde = faktiskBredde / forhold;
+                    }
+                  }
                   
                   // Beregn X-posisjon basert på kolonne
-                  const kolonne = i % maxVedleggPerRad;
-                  const xPos = margin + aksjonerBredde + vedleggPadding + 
-                             (kolonne * (maxBildeBredde + vedleggPadding));
-
+                  const kolonne = i % maxBildePerRad;
+                  const xPos = margin + vedleggPadding + kolonne * (bildeBredde + vedleggPadding / 2);
+                  
                   // Beregn Y-posisjon basert på rad
-                  const rad = Math.floor(i / maxVedleggPerRad);
-                  const yPosForBilde = vedleggY + (rad * (maxBildeHoyde + vedleggPadding));
-
+                  const rad = Math.floor(i / maxBildePerRad);
+                  const yStartForNyRad = yPos + 15 + rad * (maxBildeHoyde + vedleggPadding);
+                  
+                  // Sentrert plassering av bildet
+                  const bildeXPos = xPos + (bildeBredde - faktiskBredde) / 2;
+                  const bildeYPos = yStartForNyRad;
+                  
                   doc.addImage(
                     komprimertBilde,
                     'JPEG',
-                    xPos,
-                    yPosForBilde,
-                    maxBildeBredde,
-                    maxBildeHoyde - 5,
+                    bildeXPos,
+                    bildeYPos,
+                    faktiskBredde,
+                    faktiskHoyde,
                     undefined,
                     'FAST'
                   );
-
+                  
                   // Legg til bildenavn under bildet
                   doc.setFont(undefined, 'italic');
                   doc.setFontSize(7);
                   const navnX = xPos;
-                  const navnY = yPosForBilde + maxBildeHoyde - 3;
-                  doc.text(vedlegg.navn, navnX, navnY);
-
+                  const navnY = bildeYPos + faktiskHoyde + 5;
+                  doc.text("Skjermbilde " + (i + 1), navnX, navnY);
+                  
+                  // Oppdater maksimal høyde
+                  const totalHoydeMedTekst = faktiskHoyde + 5 + 5; // Bilde + tekst + ekstra padding
+                  maxHoydeBrukt = Math.max(maxHoydeBrukt, totalHoydeMedTekst);
+                  
                 } catch (error) {
                   console.error('Kunne ikke legge til vedlegg:', error);
                 }
               }
-            } else if (punkt.aksjoner && punkt.aksjoner.length > 0) {
-              // Hvis det bare er aksjoner, vis en melding i høyre kolonne
-              doc.setFont(undefined, 'italic');
-              doc.setFontSize(8);
-              doc.text(
-                "Ingen skjermbilder",
-                margin + aksjonerBredde + 3,
-                yPos + 25
-              );
+              
+              // Beregn total høyde basert på antall rader og maksimal høyde
+              const antallRader = Math.ceil(punkt.vedlegg.length / maxBildePerRad);
+              const totalSkjermbildeHoyde = 15 + antallRader * (maxHoydeBrukt + vedleggPadding);
+              
+              // Hvis faktisk høyde er større enn standard høyde, juster rammen
+              if (totalSkjermbildeHoyde > skjermbildeRammeHoyde) {
+                // Tegn rammen på nytt med riktig høyde
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(margin, yPos, contentWidth, totalSkjermbildeHoyde, 'S');
+                
+                // Oppdater yPos
+                yPos += totalSkjermbildeHoyde;
+              } else {
+                // Bruk standard høyde
+                yPos += skjermbildeRammeHoyde;
+              }
             }
-
-            yPos += ekstraRadHoyde;
+            
+            yPos += 10; // Legg til ekstra mellomrom etter seksjonen
           }
 
           yPos += 5;
