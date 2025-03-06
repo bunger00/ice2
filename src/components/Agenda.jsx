@@ -221,20 +221,23 @@ function Agenda({ agendaPunkter, setAgendaPunkter, startTid, deltakere, disabled
           </Droppable>
 
           <div className="p-4 space-y-4">
-            {!disabled && (
-              <button
-                onClick={() => setAgendaPunkter([...agendaPunkter, { 
-                  punkt: '', 
-                  ansvarlig: '', 
+            <button
+              onClick={() => {
+                const nyttPunkt = {
+                  punkt: '',
+                  ansvarlig: '',
                   varighet: 15,
-                  fullfort: false 
-                }])}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-              >
-                <Plus size={16} />
-                Legg til punkt
-              </button>
-            )}
+                  fullfort: false
+                };
+                setAgendaPunkter([...agendaPunkter, nyttPunkt]);
+                setHarEndringer(true);
+                setSisteEndring(new Date());
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            >
+              <Plus size={16} />
+              Legg til punkt
+            </button>
 
             <div className="grid grid-cols-12 gap-4 items-start bg-gray-50 p-4 rounded-lg">
               <div className="col-span-2">
