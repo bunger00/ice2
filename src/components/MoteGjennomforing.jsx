@@ -9,32 +9,65 @@ import DrawingEditor from './DrawingEditor';
 import QRCodeModal from './QRCodeModal';
 import SurveyResults from './SurveyResults';
 
-// Hjelpefunksjon for å komprimere bilder
+// Hjelpefunksjon for å komprimere bilder - uten å bruke Image-konstruktøren
 const compressImage = async (dataUrl, maxWidth = 800, quality = 0.7) => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      // Beregn ny bredde (maks 800px) og høyde med samme forhold
-      let newWidth = img.width;
-      let newHeight = img.height;
-      
-      if (newWidth > maxWidth) {
-        newHeight = (newHeight * maxWidth) / newWidth;
-        newWidth = maxWidth;
+  return new Promise((resolve, reject) => {
+    try {
+      if (!dataUrl || typeof dataUrl !== 'string') {
+        console.error('Ugyldig dataUrl:', typeof dataUrl);
+        reject(new Error('Ugyldig dataUrl-format'));
+        return;
       }
+      
+      // Bruk en allerede eksisterende img-element eller lag en via DOM
+      const img = document.createElement('img');
+      
+      // Håndter lasting av bilde
+      img.onload = () => {
+        try {
+          console.log(`Bilde lastet: ${img.width}x${img.height}`);
+          
+          // Beregn ny bredde (maks 800px) og høyde med samme forhold
+          let newWidth = img.width;
+          let newHeight = img.height;
+          
+          if (newWidth > maxWidth) {
+            newHeight = Math.round((newHeight * maxWidth) / newWidth);
+            newWidth = maxWidth;
+          }
+          
+          console.log(`Ny bildestørrelse: ${newWidth}x${newHeight}`);
 
-      // Tegn bildet på canvas med ny størrelse
-      const canvas = document.createElement('canvas');
-      canvas.width = newWidth;
-      canvas.height = newHeight;
+          // Tegn bildet på canvas med ny størrelse
+          const canvas = document.createElement('canvas');
+          canvas.width = newWidth;
+          canvas.height = newHeight;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, newWidth, newHeight);
+
+          // Konverter canvas til komprimert dataURL
+          const komprimertData = canvas.toDataURL('image/jpeg', quality);
+          console.log('Bilde komprimert vellykket');
+          resolve(komprimertData);
+        } catch (err) {
+          console.error('Feil ved komprimering av bilde:', err);
+          resolve(dataUrl); // Returner originalt bilde ved feil
+        }
+      };
       
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, newWidth, newHeight);
+      // Håndter feil ved lasting av bilde
+      img.onerror = (err) => {
+        console.error('Feil ved lasting av bilde:', err);
+        resolve(dataUrl); // Returner originalt bilde ved feil
+      };
       
-      // Konverter canvas til komprimert dataURL
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    img.src = dataUrl;
+      // Sett src etter at event handlers er definert
+      img.src = dataUrl;
+    } catch (err) {
+      console.error('Uventet feil i compressImage:', err);
+      resolve(dataUrl); // Returner originalt bilde ved feil
+    }
   });
 };
 
@@ -428,31 +461,89 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     return tid.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Oppdater handlePasteImage funksjonen med komprimering
+  // Oppdater handlePasteImage funksjonen for bedre feilhåndtering
   const handlePasteImage = (index, event) => {
+    try {
+      console.log("handlePasteImage kjørt for index:", index);
+      
+      if (!event || !event.clipboardData) {
+        console.error("Ugyldig event eller manglende clipboardData");
+        return;
+      }
+      
     const items = event.clipboardData.items;
+      console.log("Antall items i clipboard:", items.length);
+      
+      if (!items || items.length === 0) {
+        console.log("Ingen elementer i utklippstavlen");
+        return;
+      }
+      
     for (let i = 0; i < items.length; i++) {
+        console.log("Clipboard item type:", items[i].type);
+        
       if (items[i].type.indexOf('image') !== -1) {
-        const blob = items[i].getAsFile();
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          // Komprimer bildet før lagring
-          const komprimertBilde = await compressImage(e.target.result);
+          console.log("Bildeinnhold oppdaget i utklippstavlen");
           
+          try {
+        const blob = items[i].getAsFile();
+            if (!blob) {
+              console.error("Kunne ikke hente fil fra utklippstavlen");
+              continue;
+            }
+            
+        const reader = new FileReader();
+            
+            reader.onload = async (e) => {
+              try {
+                console.log("FileReader lastet inn bildedata");
+                if (!e.target || !e.target.result) {
+                  console.error("Manglende result i FileReader event");
+                  return;
+                }
+                
+                // Komprimere bildet
+                let bildeData;
+                try {
+                  bildeData = await compressImage(e.target.result);
+                  console.log("Bilde komprimert vellykket");
+                } catch (err) {
+                  console.error("Feil ved komprimering, bruker originalt bilde:", err);
+                  bildeData = e.target.result; // Bruk ukomprimert bilde ved feil
+                }
+
+                // Oppdater agendapunktet
           const oppdaterteAgendaPunkter = [...agendaStatus];
           oppdaterteAgendaPunkter[index].vedlegg.push({
             type: 'image',
-            data: komprimertBilde, // Bruk komprimert bilde
-            timestamp: new Date().toISOString(),
-            navn: `Skjermbilde ${oppdaterteAgendaPunkter[index].vedlegg.length + 1}`,
-            id: Math.random().toString(36).substring(2, 15),
-            strokes: [] // Initialiser med et tomt strokes-array
-          });
+                  data: bildeData,
+                  timestamp: new Date().toISOString(),
+                  navn: `Skjermbilde ${oppdaterteAgendaPunkter[index].vedlegg.length + 1}`,
+                  id: Math.random().toString(36).substring(2, 15),
+                  strokes: [] // Initialiser med et tomt strokes-array
+                });
+                console.log("Bilde lagt til i vedlegg for agendapunkt", index);
           setAgendaStatus(oppdaterteAgendaPunkter);
+              } catch (error) {
+                console.error("Feil i onload-handler:", error);
+              }
         };
+            
+            reader.onerror = (error) => {
+              console.error("Feil ved lesing av bildedata:", error);
+            };
+            
         reader.readAsDataURL(blob);
         event.preventDefault();
+            return; // Avslutt etter å ha funnet bildet
+          } catch (error) {
+            console.error("Feil ved håndtering av bildedata:", error);
       }
+        }
+      }
+      console.log("Ingen bilder funnet i utklippstavlen");
+    } catch (error) {
+      console.error("Uventet feil i handlePasteImage:", error);
     }
   };
 
@@ -547,16 +638,16 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         const oppdatertPunkt = {
           ...punkt,
           id: punkt.id || generateUniqueId(),
-          punkt: punkt.punkt || '',
-          ansvarlig: punkt.ansvarlig || '',
-          varighet: punkt.varighet || 15,
+        punkt: punkt.punkt || '',
+        ansvarlig: punkt.ansvarlig || '',
+        varighet: punkt.varighet || 15,
           startTid: punkt.startTid, // Bevare som den er
           ferdig: punkt.ferdig,     // Bevare som den er
           tidBrukt: punkt.tidBrukt, // Bevare som den er
-          kommentar: punkt.kommentar || '',
-          erLast: punkt.erLast || false,
-          notater: punkt.notater || '',
-          beslutninger: punkt.beslutninger || '',
+        kommentar: punkt.kommentar || '',
+        erLast: punkt.erLast || false,
+        notater: punkt.notater || '',
+        beslutninger: punkt.beslutninger || '',
           vedlegg: (punkt.vedlegg || []).map(v => ({
             type: v.type || 'image',
             data: v.data || '',
@@ -1045,90 +1136,81 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
 
       {/* Vedlegg-modal */}
       {showAttachmentModal && activeAttachment && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-2"
-          onClick={closeAttachmentModal}
-        >
-          <div 
-            className={`relative bg-white rounded-lg w-[95vw] max-h-[95vh] overflow-auto`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 bg-white p-2 flex justify-between items-center border-b">
-              <h3 className="text-lg font-medium text-gray-800 truncate px-2">
-                {activeAttachment.navn}
-              </h3>
-              <div className="flex items-center gap-2">
+        <div className="fixed inset-0 z-50 overflow-hidden bg-black bg-opacity-75 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-[90vw] max-h-[90vh] flex flex-col w-auto" style={{ minWidth: '50vw' }}>
+            <div className="flex justify-between items-center p-4 border-b">
+              <div className="flex items-center">
+                <h3 className="text-lg font-medium">{activeAttachment.navn}</h3>
+              </div>
+              <div className="flex items-center space-x-2">
                 {activeAttachment.type === 'image' && !showDrawingEditor && (
                   <button
                     onClick={openDrawingEditor}
-                    className="p-1.5 text-blue-500 hover:text-blue-700 rounded-full hover:bg-blue-50"
+                    className="p-2 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-50"
                     title="Tegn på bildet"
                   >
                     <Pencil size={20} />
                   </button>
                 )}
-                <a 
-                  href={activeAttachment.data} 
+                <a
+                  href={activeAttachment.data}
                   download={activeAttachment.navn}
-                  className="p-1.5 text-blue-500 hover:text-blue-700 rounded-full hover:bg-blue-50"
-                  onClick={(e) => e.stopPropagation()}
+                  className="p-2 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-50"
+                  title="Last ned"
                 >
                   <Download size={20} />
                 </a>
-                <button 
-                  className="p-1.5 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
+                <button
                   onClick={closeAttachmentModal}
+                  className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-50"
                 >
                   <X size={20} />
                 </button>
               </div>
             </div>
             
-            {/* Innhold avhengig av type */}
-            {showDrawingEditor && activeAttachment.type === 'image' ? (
-              <div className="p-2">
+            <div className="overflow-auto p-0 flex-grow flex items-center justify-center bg-gray-100" style={{ maxHeight: 'calc(90vh - 130px)' }}>
+              {showDrawingEditor && activeAttachment.type === 'image' ? (
                 <DrawingEditor
                   imageData={activeAttachment.data}
                   onSave={saveDrawing}
                   onClose={() => setShowDrawingEditor(false)}
                   initialStrokes={activeAttachment.strokes || []}
                 />
-              </div>
-            ) : (
-              <div className="p-0">
-                {activeAttachment.type === 'image' ? (
-                  <div className="w-full flex items-center justify-center bg-gray-100" style={{ height: 'calc(95vh - 50px)' }}>
-                    <img 
-                      src={activeAttachment.data} 
-                      alt={activeAttachment.navn} 
-                      className="max-w-full max-h-full object-contain"
-                    />
-                  </div>
-                ) : activeAttachment.mimeType === 'application/pdf' ? (
-                  <div className="w-full" style={{ height: 'calc(95vh - 50px)' }}>
-                    <iframe 
-                      src={activeAttachment.data} 
-                      className="w-full h-full border-0"
+              ) : (
+                <div className="p-0">
+                  {activeAttachment.type === 'image' ? (
+                    <div className="overflow-auto max-h-[70vh] max-w-full flex items-center justify-center">
+                      <img
+                        src={activeAttachment.data}
+                        alt={activeAttachment.navn}
+                        className="max-w-full h-auto object-contain"
+                        style={{ maxHeight: '70vh', width: 'auto', objectFit: 'contain' }}
+                      />
+                    </div>
+                  ) : activeAttachment.mimeType === 'application/pdf' ? (
+                    <iframe
+                      src={activeAttachment.data}
+                      className="w-full h-[80vh]"
                       title={activeAttachment.navn}
                     ></iframe>
-                  </div>
-                ) : (
-                  <div className="text-center p-10">
-                    <FileText size={60} className="mx-auto mb-4 text-gray-400" />
-                    <p className="mb-4">Dette filformatet kan ikke vises i nettleseren.</p>
-                    <a 
-                      href={activeAttachment.data} 
-                      download={activeAttachment.navn}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Download size={18} />
-                      Last ned filen
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
+                  ) : (
+                    <div className="p-8 flex flex-col items-center justify-center">
+                      <FileText size={64} className="text-gray-400 mb-4" />
+                      <p className="mb-4 text-gray-700">Dette dokumentet kan ikke forhåndsvises.</p>
+                      <a
+                        href={activeAttachment.data}
+                        download={activeAttachment.navn}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+                      >
+                        <Download size={16} />
+                        Last ned fil
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
