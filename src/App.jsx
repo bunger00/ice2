@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
-import { PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut, Share, Save, Plus } from 'lucide-react';
+import { PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut, Share, Save } from 'lucide-react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import MoteInformasjon from './components/MoteInformasjon';
 import Deltakere from './components/Deltakere';
@@ -319,7 +319,7 @@ function App() {
       gjennomforingsStatus: moteData.gjennomforingsStatus || {
         statusOppnadd: '',
         nyDato: '',
-      mal: moteData.mal || ''
+        mal: moteData.mal || ''
       }
     });
 
@@ -351,7 +351,7 @@ function App() {
     setErGjennomfort(moteData.erGjennomfort || false);
     setVisLagredeMoter(false);
     setVisMoteSkjema(true);
-
+    
     // Start historikk-lytting
     const unsubscribeHistorikk = await hentHistorikk(moteData.id);
     
@@ -611,7 +611,7 @@ function App() {
           gjennomforingsStatus: data.gjennomforingsStatus || {
             statusOppnadd: '',
             nyDato: '',
-          mal: data.mal || ''
+            mal: data.mal || ''
           }
         });
         
@@ -966,144 +966,129 @@ function App() {
             <div className="min-h-screen bg-gray-100">
               {showToast && (
                 <Toast 
-                  message={toastMessage || "Møtet ble lagret"} 
+                  message={toastMessage || 'Agenda er lagret!'} 
                   onClose={() => setShowToast(false)} 
                 />
               )}
-
-              {showSaveDialog && (
-                <DialogModal
-                  title="Lagre endringer?"
-                  message="Du har ulagrede endringer. Vil du lagre dem før du fortsetter?"
-                  confirmText="Lagre"
-                  cancelText="Ikke lagre"
-                  onConfirm={async () => {
-                    await lagreMote();
-                    setShowSaveDialog(false);
-                    resetMote();
-                    setVisMoteSkjema(true);
-                  }}
-                  onCancel={() => {
-                    setShowSaveDialog(false);
-                    resetMote();
-                    setVisMoteSkjema(true);
-                  }}
-                />
-              )}
-
-              <div className="bg-white shadow-sm">
-                <div className="container mx-auto px-4">
-                  <div className="py-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center space-x-4">
-                        <h1 className="text-xl font-semibold text-gray-900">ICE Meeting</h1>
-                        <button
-                          onClick={nyttMote}
-                          className="flex items-center space-x-1 text-blue-600 hover:text-blue-800"
+              <div className="bg-white border-b border-gray-100">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                  <div className="flex justify-between items-center h-16">
+                    <div className="flex items-center space-x-2 sm:space-x-8">
+                      <div className="flex items-center">
+                        <img 
+                          src="/Logolean.png" 
+                          alt="ICE Meeting" 
+                          className="h-6 sm:h-8 w-auto"
+                        />
+                        <span className="ml-2 sm:ml-3 text-base sm:text-xl font-light text-gray-900">ICE Meeting</span>
+                      </div>
+                      <button
+                        onClick={nyttMote}
+                        className="hidden sm:inline-flex items-center px-2 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm text-blue-600 hover:bg-blue-50 rounded-full transition-colors duration-200"
+                      >
+                        <PlusCircle size={16} className="mr-1 sm:mr-2" />
+                        <span className="whitespace-nowrap">Nytt møte</span>
+                      </button>
+                      {/* Mobil Nytt møte-knapp */}
+                      <button
+                        onClick={nyttMote}
+                        className="sm:hidden inline-flex items-center p-1.5 text-blue-600 hover:bg-blue-50 rounded-full transition-colors duration-200"
+                        aria-label="Nytt møte"
+                      >
+                        <PlusCircle size={18} />
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      {/* Desktop verktøylinje */}
+                      <div className="hidden sm:flex items-end space-x-6 h-8">
+                        <button 
+                          onClick={handleManuellLagring}
+                          className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
+                          title="Lagre møte"
                         >
-                          <PlusCircle size={18} />
-                          <span className="text-sm font-medium">Nytt møte</span>
+                          <Save size={18} />
+                          <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            Lagre møte
+                          </span>
                         </button>
-                        <button
-                          onClick={fyllDummyData}
-                          className="flex items-center space-x-1 text-gray-500 hover:text-gray-700"
+                        <button 
+                          onClick={startMote}
+                          className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
+                          title="Start møte"
                         >
-                          <Database size={18} />
-                          <span className="text-sm font-medium">Fyll testdata</span>
+                          <Play size={18} />
+                          <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            Start møte
+                          </span>
+                        </button>
+                        <button 
+                          onClick={genererDelingsLink}
+                          className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
+                          title="Del møte"
+                        >
+                          <Share size={18} />
+                          <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            Del møte
+                          </span>
+                        </button>
+                        <AgendaPrintView
+                          moteInfo={moteInfo}
+                          deltakere={deltakere}
+                          agendaPunkter={agendaPunkter}
+                        >
+                          <FileDown size={18} />
+                        </AgendaPrintView>
+                        <button 
+                          onClick={handleLogout}
+                          className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
+                          title="Logg ut"
+                        >
+                          <LogOut size={18} />
+                          <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            Logg ut
+                          </span>
                         </button>
                       </div>
-
-                      <div className="flex items-center">
-                        {/* Desktop verktøylinje */}
-                        <div className="hidden sm:flex items-end space-x-6 h-8">
-                          <button 
-                            onClick={handleManuellLagring}
-                            className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
-                            title="Lagre møte"
-                          >
-                            <Save size={18} />
-                            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                              Lagre møte
-                            </span>
-                          </button>
-                          <button
-                            onClick={startMote}
-                            className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
-                            title="Start møte"
-                          >
-                            <Play size={18} />
-                            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                              Start møte
-                            </span>
-                          </button>
-                          <button
-                            onClick={genererDelingsLink}
-                            className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
-                            title="Del møte"
-                          >
-                            <Share size={18} />
-                            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                              Del møte
-                            </span>
-                          </button>
+                      
+                      {/* Mobil verktøylinje - kompakt */}
+                      <div className="flex sm:hidden items-center space-x-1.5">
+                        <button 
+                          onClick={handleManuellLagring}
+                          className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
+                          title="Lagre møte"
+                        >
+                          <Save size={18} />
+                        </button>
+                        <button 
+                          onClick={startMote}
+                          className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
+                          title="Start møte"
+                        >
+                          <Play size={18} />
+                        </button>
+                        <button 
+                          onClick={genererDelingsLink}
+                          className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
+                          title="Del møte"
+                        >
+                          <Share size={18} />
+                        </button>
+                        <div className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100">
                           <AgendaPrintView
                             moteInfo={moteInfo}
                             deltakere={deltakere}
                             agendaPunkter={agendaPunkter}
-                          >
-                            <FileDown size={18} />
-                          </AgendaPrintView>
-                          <button
-                            onClick={handleLogout}
-                            className="text-gray-700 hover:text-gray-900 transition-colors duration-200 relative group pb-1"
-                            title="Logg ut"
-                          >
-                            <LogOut size={18} />
-                            <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                              Logg ut
-                            </span>
-                          </button>
+                            iconOnly={true}
+                          />
                         </div>
-
-                        {/* Mobil verktøylinje - kompakt */}
-                        <div className="flex sm:hidden items-center space-x-1.5">
-                          <button
-                            onClick={handleManuellLagring}
-                            className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
-                            title="Lagre møte"
-                          >
-                            <Save size={18} />
-                          </button>
-                          <button
-                            onClick={startMote}
-                            className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
-                            title="Start møte"
-                          >
-                            <Play size={18} />
-                          </button>
-                          <button
-                            onClick={genererDelingsLink}
-                            className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
-                            title="Del møte"
-                          >
-                            <Share size={18} />
-                          </button>
-                          <div className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100">
-                            <AgendaPrintView
-                              moteInfo={moteInfo}
-                              deltakere={deltakere}
-                              agendaPunkter={agendaPunkter}
-                              iconOnly={true}
-                            />
-                          </div>
-                          <button
-                            onClick={handleLogout}
-                            className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
-                            title="Logg ut"
-                          >
-                            <LogOut size={18} />
-                          </button>
-                        </div>
+                        <button 
+                          onClick={handleLogout}
+                          className="p-1.5 rounded-full text-gray-700 hover:bg-gray-100"
+                          title="Logg ut"
+                        >
+                          <LogOut size={18} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1112,47 +1097,45 @@ function App() {
 
               <div className="container mx-auto px-4 py-8">
                 <div className="mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                      <FolderOpen size={20} />
-                      Møteoversikt
-                    </h2>
-                    <button
-                      onClick={nyttMote}
-                      className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      <Plus size={18} />
-                      Nytt møte
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setVisLagredeMoter(!visLagredeMoter)}
+                    className="w-full flex items-center justify-between p-4 bg-white border rounded-lg hover:bg-gray-50"
+                  >
+                    <div className="flex items-center gap-2 text-gray-700">
+                      <FolderOpen size={18} />
+                      <span className="font-medium">Lagrede møter</span>
+                    </div>
+                    {visLagredeMoter ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  </button>
                   
-                  {/* Lagrede møter - alltid synlig */}
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                    <LagredeMoter
-                      onVelgMote={lastMote}
-                      moter={lagredeMoter}
-                      onSlettMote={slettMote}
-                      onStatusChange={handleMoteStatusChange}
-                    />
-                  </div>
+                  {visLagredeMoter && (
+                    <div className="mt-2">
+                      <LagredeMoter 
+                        onVelgMote={lastMote} 
+                        moter={lagredeMoter}
+                        onSlettMote={slettMote}
+                        onStatusChange={handleMoteStatusChange}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {visMoteSkjema && (
                   <div className="space-y-6">
-                    <MoteInformasjon
+                    <MoteInformasjon 
                       moteInfo={moteInfo}
                       setMoteInfo={setMoteInfo}
                       deltakere={deltakere}
                       setDeltakere={setDeltakere}
                       disabled={erGjennomfort}
                     />
-                    <Deltakere
+                    <Deltakere 
                       deltakere={deltakere}
                       setDeltakere={setDeltakere}
                       disabled={erGjennomfort}
                     />
                     <DragDropContext onDragEnd={handleDragEnd}>
-                      <Agenda
+                      <Agenda 
                         agendaPunkter={agendaPunkter}
                         setAgendaPunkter={handleAgendaChange}
                         startTid={moteInfo.startTid}
@@ -1167,37 +1150,37 @@ function App() {
           ) : (
             <Navigate to="/login" />
           )
-        }
+        } 
       />
-      <Route
-        path="/gjennomforing"
+      <Route 
+        path="/gjennomforing" 
         element={
           isAuthenticated ? (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <MoteGjennomforing
-                moteInfo={moteInfo}
-                deltakere={deltakere}
-                agendaPunkter={agendaPunkter}
-                setDeltakere={setDeltakere}
-                setAgendaPunkter={setAgendaPunkter}
-                lagreMote={lagreMote}
-                resetMote={resetMote}
-                setVisMoteSkjema={setVisMoteSkjema}
-                setVisLagredeMoter={setVisLagredeMoter}
-              />
-            </DragDropContext>
+            <MoteGjennomforing
+              moteInfo={moteInfo}
+              deltakere={deltakere}
+              agendaPunkter={agendaPunkter}
+              setDeltakere={setDeltakere}
+              setAgendaPunkter={setAgendaPunkter}
+              lagreMote={lagreMote}
+              resetMote={resetMote}
+              setVisMoteSkjema={setVisMoteSkjema}
+              setVisLagredeMoter={setVisLagredeMoter}
+            />
           ) : (
             <Navigate to="/login" />
           )
-        }
+        } 
       />
-      <Route
-        path="/survey/:moteId"
-        element={<SurveyForm />}
+      
+      {/* Ruter for spørreundersøkelse */}
+      <Route 
+        path="/survey/:moteId" 
+        element={<SurveyForm />} 
       />
-      <Route
-        path="/survey-results/:moteId"
-        element={isAuthenticated ? <SurveyResults /> : <Navigate to="/login" />}
+      <Route 
+        path="/survey-results/:moteId" 
+        element={isAuthenticated ? <SurveyResults /> : <Navigate to="/login" />} 
       />
     </Routes>
   );

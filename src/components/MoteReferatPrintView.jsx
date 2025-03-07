@@ -430,7 +430,7 @@ function MoteReferatPrintView({ moteInfo, deltakere, agendaPunkter, children, bu
             });
           }
 
-          yPos += rowHeight;
+        yPos += rowHeight;
 
           // Hvis det finnes beslutninger, aksjoner eller vedlegg
           if ((punkt.beslutninger && punkt.beslutninger.trim()) || (punkt.aksjoner && punkt.aksjoner.length > 0) || (punkt.vedlegg && punkt.vedlegg.length > 0)) {

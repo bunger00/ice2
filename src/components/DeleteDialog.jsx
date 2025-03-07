@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 
 function DeleteDialog({ isOpen, onClose, onConfirm, moteTema }) {
   if (!isOpen) return null;
-  
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4 animate-fade-in">
@@ -17,7 +17,7 @@ function DeleteDialog({ isOpen, onClose, onConfirm, moteTema }) {
             </h3>
             <p className="mt-2 text-sm text-gray-500">
               Er du sikker på at du vil slette møtet{' '}
-              <span className="font-medium">"{moteTema}"</span>?
+              <span className="font-medium">"{moteTema}"</span>? 
               Denne handlingen kan ikke angres.
             </p>
           </div>

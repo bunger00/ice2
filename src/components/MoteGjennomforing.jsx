@@ -198,15 +198,18 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     }))
   );
 
+  // Legg til denne hjelpefunksjonen øverst i komponenten
+  const generateUniqueId = () => Math.random().toString(36).substring(2, 15);
+
   // Last inn aktivt punkt fra moteInfo hvis det finnes
   const [aktivtPunkt, setAktivtPunkt] = useState(null);
 
   // Oppdater initialiseringen av agendaStatus for å inkludere alle nødvendige felter
   const [agendaStatus, setAgendaStatus] = useState(
-    agendaPunkter.map(a => ({
-      ...a,
+    agendaPunkter.map(a => ({ 
+      ...a, 
       id: a.id || generateUniqueId(),
-      kommentar: a.kommentar || '',
+      kommentar: a.kommentar || '', 
       startTid: a.startTid || null,
       ferdig: a.ferdig || false,
       tidBrukt: a.tidBrukt || null,
@@ -217,125 +220,6 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
       aksjoner: a.aksjoner || []
     }))
   );
-
-  // Legg til denne hjelpefunksjonen øverst i komponenten
-  const generateUniqueId = () => Math.random().toString(36).substring(2, 15);
-
-  // Last inn aktivt punkt fra moteInfo når komponenten lastes
-  useEffect(() => {
-    if (moteInfo) {
-      console.log('MoteInfo i useEffect:', { 
-        id: moteInfo.id, 
-        aktivtPunkt: moteInfo.aktivtPunkt,
-        agendaPunkter: agendaPunkter.map(p => ({ 
-          punkt: p.punkt,
-          ferdig: p.ferdig,
-          startTid: p.startTid,
-          tidBrukt: p.tidBrukt
-        }))
-      });
-      
-      if (typeof moteInfo.aktivtPunkt === 'number') {
-        console.log(`Setter aktivt punkt til: ${moteInfo.aktivtPunkt}`);
-        setAktivtPunkt(moteInfo.aktivtPunkt);
-      }
-    }
-  }, [moteInfo, moteInfo.id]);
-
-  // Oppdater initialiseringen av agendaStatus for å inkludere alle nødvendige felter
-  useEffect(() => {
-    console.log('Agendapunkter før oppdatering:', agendaPunkter.map(p => ({
-      punkt: p.punkt,
-      ferdig: p.ferdig,
-      startTid: p.startTid,
-      tidBrukt: p.tidBrukt
-    })));
-    
-    // Initialiser agendaStatus med verdier fra agendaPunkter
-    setAgendaStatus(
-      agendaPunkter.map(a => ({
-        ...a,
-        id: a.id || generateUniqueId(),
-        kommentar: a.kommentar || '',
-        startTid: a.startTid || null,
-        ferdig: a.ferdig || false,
-        tidBrukt: a.tidBrukt || null,
-        vedlegg: repairPDFData(a.vedlegg) || [], // Reparer PDF-data i vedlegg
-        erLast: a.erLast || false,
-        notater: a.notater || '',
-        beslutninger: a.beslutninger || '',
-        aksjoner: a.aksjoner || []
-      }))
-    );
-  }, [agendaPunkter]);
-
-  // Funksjon for å reparere PDF-data i vedlegg
-  const repairPDFData = (vedlegg) => {
-    if (!vedlegg || !Array.isArray(vedlegg)) return vedlegg;
-    
-    return vedlegg.map(v => {
-      // Hvis det er en PDF-fil, sjekk og reparer data URL
-      if (v.mimeType === 'application/pdf' && v.data) {
-        // Bruk vår hjelpefunksjon for å sikre riktig format
-        return {
-          ...v,
-          data: ensureCorrectPDFFormat(v.data)
-        };
-      }
-      return v;
-    });
-  };
-
-  // Funksjon for å reparere PDF-data i alle agendapunkter og lagre til databasen
-  const repairAllPDFData = async () => {
-    console.log('Starter reparasjon av PDF-data');
-    const oppdaterteAgendaPunkter = [...agendaStatus];
-    let harEndringer = false;
-    
-    // Gå gjennom alle agendapunkter og vedlegg
-    oppdaterteAgendaPunkter.forEach((punkt, punktIndex) => {
-      if (punkt.vedlegg && Array.isArray(punkt.vedlegg)) {
-        punkt.vedlegg.forEach((vedlegg, vedleggIndex) => {
-          // Hvis det er en PDF, sjekk og reparer data URL
-          if (vedlegg.mimeType === 'application/pdf' && vedlegg.data) {
-            console.log(`Sjekker PDF-vedlegg ${vedleggIndex} i agendapunkt ${punktIndex}`);
-            
-            // Sjekk om dataURL har riktig prefix
-            if (!vedlegg.data.startsWith('data:application/pdf;base64,')) {
-              console.log(`Reparerer PDF-format for vedlegg ${vedleggIndex}`);
-              
-              // Bruk vår hjelpefunksjon for å sikre riktig format
-              oppdaterteAgendaPunkter[punktIndex].vedlegg[vedleggIndex].data = 
-                ensureCorrectPDFFormat(vedlegg.data);
-              
-              harEndringer = true;
-            } else {
-              console.log(`PDF-vedlegg ${vedleggIndex} har allerede riktig format`);
-            }
-          }
-        });
-      }
-    });
-    
-    // Oppdater state og lagre endringer hvis det er gjort endringer
-    if (harEndringer) {
-      console.log('PDF-data reparert, oppdaterer state og lagrer til database');
-      setAgendaStatus(oppdaterteAgendaPunkter);
-      
-      // Lagre endringene til databasen
-      try {
-        // Vent litt for å sikre at statet er oppdatert
-        setTimeout(async () => {
-          await handleSave(true); // true indikerer at dette er en automatisk lagring
-          console.log('PDF-reparasjoner lagret til databasen');
-        }, 500);
-      } catch (error) {
-        console.error('Kunne ikke lagre PDF-reparasjoner til databasen:', error);
-      }
-    } else {
-      console.log('Ingen PDF-data trengte reparasjon');
-    }
-  };
 
   const [statusOppnadd, setStatusOppnadd] = useState(
     moteInfo.statusOppnadd || moteInfo.gjennomforingsStatus?.statusOppnadd || ''
@@ -674,79 +558,29 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [showDrawingEditor, setShowDrawingEditor] = useState(false);
 
-  // Legg til state for å spore PDF-reparasjon
-  const [isPDFRepairing, setIsPDFRepairing] = useState(false);
-  const [toastMessage, setToastMessage] = useState('Møtet er lagret!');
-
   // Oppdater visVedlegg funksjonen for bedre PDF-håndtering
   const visVedlegg = (vedlegg, agendaIndex, vedleggIndex) => {
-    // For PDF-vedlegg - gjør ekstra sjekk og reparasjon
+    // Hvis det er en PDF, sjekk og reparer data URL
     if (vedlegg.mimeType === 'application/pdf' && vedlegg.data) {
-      console.log('Åpner PDF-vedlegg:', vedlegg.navn);
-      
       // Sjekk om dataURL har riktig prefix
       if (!vedlegg.data.startsWith('data:application/pdf;base64,')) {
-        console.log('PDF-data trenger reparasjon:', vedlegg.navn);
+        // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
+        const base64Data = vedlegg.data.includes('base64,') 
+          ? vedlegg.data.split('base64,')[1] 
+          : vedlegg.data;
         
-        try {
-          // Indiker at PDF-reparasjon pågår
-          setIsPDFRepairing(true);
-          
-          // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
-          const base64Data = vedlegg.data.includes('base64,') 
-            ? vedlegg.data.split('base64,')[1] 
-            : vedlegg.data;
-          
-          // Lag en ny data URL med riktig format
-          const reparertData = `data:application/pdf;base64,${base64Data}`;
-          
-          // Oppdater vedlegget i agendaStatus
-          const oppdaterteAgendaPunkter = [...agendaStatus];
-          if (oppdaterteAgendaPunkter[agendaIndex] && 
-              oppdaterteAgendaPunkter[agendaIndex].vedlegg && 
-              oppdaterteAgendaPunkter[agendaIndex].vedlegg[vedleggIndex]) {
-            
-            // Oppdater data i agendaStatus-kopien
-            oppdaterteAgendaPunkter[agendaIndex].vedlegg[vedleggIndex].data = reparertData;
-            
-            // Oppdater state
-            setAgendaStatus(oppdaterteAgendaPunkter);
-            
-            // Opprett en modifisert kopi av vedlegget for visning
-            const reparertVedlegg = {
-              ...vedlegg,
-              data: reparertData,
-              agendaIndex,
-              vedleggIndex
-            };
-            
-            // Sett vedlegget som aktivt
-            setActiveAttachment(reparertVedlegg);
-            
-            // Lagre endringen til databasen
-            setTimeout(async () => {
-              try {
-                await handleSave(true);
-                console.log('Reparert PDF-data lagret til databasen');
-                setToastMessage('PDF-visning forbedret og lagret');
-                setShowToast(true);
-                setTimeout(() => setShowToast(false), 3000);
-              } catch (error) {
-                console.error('Kunne ikke lagre reparert PDF-data:', error);
-              } finally {
-                setIsPDFRepairing(false);
-              }
-            }, 500);
-          } else {
-            console.error('Kunne ikke finne vedlegget for reparasjon');
-            setIsPDFRepairing(false);
-            setActiveAttachment({...vedlegg, agendaIndex, vedleggIndex});
-          }
-        } catch (error) {
-          console.error('Feil ved reparasjon av PDF-data:', error);
-          setIsPDFRepairing(false);
-          setActiveAttachment({...vedlegg, agendaIndex, vedleggIndex});
-        }
+        // Oppdater vedlegget med riktig data URL format
+        const oppdaterteAgendaPunkter = [...agendaStatus];
+        oppdaterteAgendaPunkter[agendaIndex].vedlegg[vedleggIndex].data = `data:application/pdf;base64,${base64Data}`;
+        setAgendaStatus(oppdaterteAgendaPunkter);
+        
+        // Sett aktivt vedlegg med reparert data
+        setActiveAttachment({
+          ...vedlegg, 
+          data: `data:application/pdf;base64,${base64Data}`,
+          agendaIndex, 
+          vedleggIndex
+        });
       } else {
         // Hvis formatet allerede er riktig
         setActiveAttachment({...vedlegg, agendaIndex, vedleggIndex});
@@ -802,86 +636,140 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     };
   }, [showAttachmentModal]);
 
-  // Legg til feilmelding state
-  const [feilmelding, setFeilmelding] = useState('');
-  const [showFeilmelding, setShowFeilmelding] = useState(false);
-
-  // Oppdater handleSave for å håndtere feilmeldinger
-  const handleSave = async (isAutomaticSave = false) => {
+  // Oppdater handleSave-funksjonen for å sikre at agendapunkt-status lagres korrekt
+  const handleSave = async () => {
     try {
-      // Bare logg hvis dette ikke er en automatisk lagring
-      if (!isAutomaticSave) {
-        console.log('Lagrer manuelt...');
+      if (!moteInfo.id) {
+        setShowToast(false);
+        alert('Kan ikke lagre: Møtet mangler ID');
+        return false;
       }
+
+      // Sørg for at vi bruker riktig starttid - prioriter lokal verdi
+      const currentStartTid = moteInfo.startTid;
+      const lokaltLagretStartTid = localStorage.getItem(`mote_${moteInfo.id}_startTid`);
+      const effectiveStartTid = lokaltLagretStartTid || currentStartTid || '09:00';
       
-      // Nullstill forrige feil
-      setFeilmelding('');
-      setShowFeilmelding(false);
+      // Konsekvent bruk av tomme strenger i stedet for null
+      const currentStatusOppnadd = statusOppnadd || '';
+      const currentNyDato = nyDato || '';
       
-      // Logger agendastatus før lagring (for debugging)
-      console.log('Status før lagring:', agendaStatus);
+      // Oppdater agendapunkter basert på gjeldende status med grundig logging
+      console.log('Agenda status før lagring:', agendaStatus.map(p => ({
+        punkt: p.punkt,
+        ferdig: p.ferdig,
+        startTid: p.startTid,
+        tidBrukt: p.tidBrukt
+      })));
       
-      // Oppdater gjennomføringsdata med gjeldende status
-      const gjennomforingsData = {
-        gjennomforingsStatus: {
-          statusOppnadd,
-          nyDato,
-          aktivtPunkt, // Lagrer også aktivt punkt
-          deltakere: deltakereStatus.map(d => ({
-            ...d,
-            epost: d.epost || ''
-          }))
-        },
-        agendaPunkter: agendaStatus.map(punkt => ({
+      const oppdaterteAgendaPunkter = agendaStatus.map(punkt => {
+        const oppdatertPunkt = {
+          ...punkt,
           id: punkt.id || generateUniqueId(),
-          punkt: punkt.punkt || '',
-          ansvarlig: punkt.ansvarlig || '',
-          varighet: punkt.varighet || 15,
-          startTid: punkt.startTid,
-          ferdig: punkt.ferdig,
-          tidBrukt: punkt.tidBrukt,
-          kommentar: punkt.kommentar || '',
-          notater: punkt.notater || '',
-          beslutninger: punkt.beslutninger || '',
-          vedlegg: Array.isArray(punkt.vedlegg) ? punkt.vedlegg.map(v => ({
-            id: v.id || generateUniqueId(),
+        punkt: punkt.punkt || '',
+        ansvarlig: punkt.ansvarlig || '',
+        varighet: punkt.varighet || 15,
+          startTid: punkt.startTid, // Bevare som den er
+          ferdig: punkt.ferdig,     // Bevare som den er
+          tidBrukt: punkt.tidBrukt, // Bevare som den er
+        kommentar: punkt.kommentar || '',
+        erLast: punkt.erLast || false,
+        notater: punkt.notater || '',
+        beslutninger: punkt.beslutninger || '',
+          vedlegg: (punkt.vedlegg || []).map(v => ({
             type: v.type || 'image',
             data: v.data || '',
             navn: v.navn || 'Vedlegg',
+            id: v.id || Math.random().toString(36).substring(2, 15),
             mimeType: v.mimeType || '',
-            lastModified: v.lastModified || Date.now(),
-            strokes: v.strokes || []
-          })) : [],
-          aksjoner: Array.isArray(punkt.aksjoner) ? punkt.aksjoner.map(a => ({
+            strokes: v.strokes || [] // Bevar strokes
+          })),
+          aksjoner: (punkt.aksjoner || []).map(a => ({
             ansvarlig: a.ansvarlig || '',
             beskrivelse: a.beskrivelse || '',
             frist: a.frist || '',
             opprettet: a.opprettet || new Date().toISOString(),
             status: a.status || 'åpen'
-          })) : [],
-          erLast: punkt.erLast || false
-        }))
+          }))
+        };
+        return oppdatertPunkt;
+      });
+
+      console.log('Agenda før lagring til Firestore:', oppdaterteAgendaPunkter.map(p => ({
+        punkt: p.punkt,
+        ferdig: p.ferdig,
+        startTid: p.startTid,
+        tidBrukt: p.tidBrukt
+      })));
+      
+      console.log('Aktivt punkt før lagring:', aktivtPunkt);
+
+      // Lagre data med aktivt punkt
+      const gjennomforingsData = {
+        id: moteInfo.id,
+        tema: moteInfo.tema || '',
+        dato: moteInfo.dato || '',
+        startTid: effectiveStartTid,
+        innkallingsDato: moteInfo.innkallingsDato || '',
+        eier: moteInfo.eier || '',
+        fasilitator: moteInfo.fasilitator || '',
+        referent: moteInfo.referent || '',
+        hensikt: moteInfo.hensikt || '',
+        mal: moteInfo.mal || '',
+        erGjennomfort: true,
+        aktivtPunkt: aktivtPunkt, // Lagre aktivt punkt i møtedata
+        gjennomforingsStatus: {
+          statusOppnadd: currentStatusOppnadd,
+          nyDato: currentNyDato,
+          mal: moteInfo.mal || ''
+        },
+        statusInfo: {
+          fullfortePunkter: oppdaterteAgendaPunkter.filter(p => p.ferdig).length,
+          gjenstaendePunkter: oppdaterteAgendaPunkter.filter(p => !p.ferdig).length,
+          totaltAntallPunkter: oppdaterteAgendaPunkter.length
+        },
+        deltakere: deltakereStatus.map(d => ({
+          navn: d.navn || '',
+          fagFunksjon: d.fagFunksjon || '',
+          utfortStatus: d.utfortStatus || 'none',
+          oppmoteStatus: d.oppmoteStatus || 'none',
+          forberedelser: d.forberedelser || '',
+          epost: d.epost || ''
+        })),
+        agendaPunkter: oppdaterteAgendaPunkter
       };
+
+      console.log('Lagrer gjennomføringsdata med status:', gjennomforingsData.gjennomforingsStatus);
+      console.log('Agenda-statuser som lagres:', oppdaterteAgendaPunkter.map(p => ({
+        punkt: p.punkt,
+        ferdig: p.ferdig,
+        startTid: p.startTid,
+        tidBrukt: p.tidBrukt
+      })));
+
+      // Oppdater hovedstate
+      setDeltakere(deltakereStatus);
+      setAgendaPunkter(oppdaterteAgendaPunkter);
 
       const success = await lagreMote(true, gjennomforingsData);
       
       if (success) {
-        if (!isAutomaticSave) {
-          // Bare vis melding for manuelle lagringer
-          setToastMessage('Møtet er lagret!');
-          setShowToast(true);
-          setTimeout(() => setShowToast(false), 3000);
-        }
-      } else {
-        setFeilmelding('Kunne ikke lagre møtet. Prøv igjen senere.');
-        setShowFeilmelding(true);
-        setTimeout(() => setShowFeilmelding(false), 5000);
+        // Oppdater moteInfo også slik at den inneholder de nye gjennomforingsstatus-verdiene
+        moteInfo.gjennomforingsStatus = {
+          statusOppnadd: currentStatusOppnadd,
+          nyDato: currentNyDato,
+          mal: moteInfo.mal || ''
+        };
+        
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+        return true;
       }
+      return false;
     } catch (error) {
-      console.error('Feil ved lagring:', error);
-      setFeilmelding('En feil oppstod ved lagring. Prøv igjen senere.');
-      setShowFeilmelding(true);
-      setTimeout(() => setShowFeilmelding(false), 5000);
+      console.error('Detaljert feil ved lagring:', error);
+      alert(`Kunne ikke lagre møtet: ${error.message}`);
+      return false;
     }
   };
 
@@ -1137,29 +1025,6 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     setShowSurveyResults(true);
   };
 
-  // Hjelpefunksjon for å konvertere PDF-data til riktig format
-  const ensureCorrectPDFFormat = (pdfData) => {
-    if (!pdfData) return pdfData;
-    
-    // Hvis allerede riktig format, returner uendret
-    if (pdfData.startsWith('data:application/pdf;base64,')) {
-      return pdfData;
-    }
-    
-    try {
-      // Fjern eventuelt eksisterende prefix og bruk kun base64-delen
-      const base64Data = pdfData.includes('base64,') 
-        ? pdfData.split('base64,')[1] 
-        : pdfData;
-      
-      // Legg til riktig prefix
-      return `data:application/pdf;base64,${base64Data}`;
-    } catch (error) {
-      console.error('Feil ved konvertering av PDF-format:', error);
-      return pdfData; // Returner original ved feil
-    }
-  };
-
   // Oppdater handleFileUpload funksjonen for bedre PDF-håndtering
   const handleFileUpload = (index, event) => {
     const file = event.target.files[0];
@@ -1188,18 +1053,25 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
       if (file.type.startsWith('image/')) {
         fileData = await compressImage(fileData);
       }
-      
-      // For PDF-filer, sikre at data URL har riktig format
-      if (file.type === 'application/pdf') {
-        fileData = ensureCorrectPDFFormat(fileData);
-        console.log('PDF-fil lastet opp og formatert med MIME-type:', file.type);
-      }
 
       const oppdaterteAgendaPunkter = [...agendaStatus];
 
       // Hvis vedlegg-arrayet ikke finnes, initialiser det
       if (!oppdaterteAgendaPunkter[index].vedlegg) {
         oppdaterteAgendaPunkter[index].vedlegg = [];
+      }
+
+      // For PDF-filer, sikre at data URL har riktig format og MIME-type
+      if (file.type === 'application/pdf') {
+        // Sjekk om dataURL har riktig prefix
+        if (!fileData.startsWith('data:application/pdf;base64,')) {
+          // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
+          const base64Data = fileData.includes('base64,') 
+            ? fileData.split('base64,')[1] 
+            : fileData;
+          fileData = `data:application/pdf;base64,${base64Data}`;
+        }
+        console.log('PDF-fil lastet opp med MIME-type:', file.type);
       }
 
       // Legger til det nye vedlegget
@@ -1212,47 +1084,125 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
       });
       
       setAgendaStatus(oppdaterteAgendaPunkter);
-      
-      // Lagre endringene umiddelbart for PDF-filer for å sikre korrekt visning senere
-      if (file.type === 'application/pdf') {
-        try {
-          setTimeout(async () => {
-            await handleSave(true);
-            console.log('PDF-fil ble lagret til databasen med riktig format');
-          }, 500);
-        } catch (error) {
-          console.error('Kunne ikke lagre PDF-fil til databasen:', error);
-        }
-      }
     };
 
     // For alle filtyper, bruk readAsDataURL
     reader.readAsDataURL(file);
   };
 
-  // Kjør PDF-reparasjon når komponenten lastes og når agendaStatus endres
+  // Last inn aktivt punkt fra moteInfo når komponenten lastes
   useEffect(() => {
-    // Ikke kjør på første rendering eller hvis agendaStatus er tom
-    if (!agendaStatus || agendaStatus.length === 0) return;
-    
-    console.log('AgendaStatus oppdatert, sjekker om PDF-filer trenger reparasjon');
-    
-    // Vent litt for å sikre at alt er initialisert
-    const timer = setTimeout(() => {
-      repairAllPDFData();
-    }, 1500);
-    
-    return () => clearTimeout(timer);
-  }, [agendaStatus.length]); // Kjør når antall agendapunkter endres
+    if (moteInfo) {
+      console.log('MoteInfo i useEffect:', { 
+        id: moteInfo.id, 
+        aktivtPunkt: moteInfo.aktivtPunkt,
+        agendaPunkter: agendaPunkter.map(p => ({ 
+          punkt: p.punkt,
+          ferdig: p.ferdig,
+          startTid: p.startTid,
+          tidBrukt: p.tidBrukt
+        }))
+      });
+      
+      if (typeof moteInfo.aktivtPunkt === 'number') {
+        console.log(`Setter aktivt punkt til: ${moteInfo.aktivtPunkt}`);
+        setAktivtPunkt(moteInfo.aktivtPunkt);
+      }
+    }
+  }, [moteInfo, moteInfo.id]);
 
-  // Også kjør på første rendering
+  // Oppdater initialiseringen av agendaStatus for å inkludere alle nødvendige felter
   useEffect(() => {
-    console.log('MoteGjennomforing montert, planlegger PDF-reparasjon');
+    console.log('Agendapunkter før oppdatering:', agendaPunkter.map(p => ({
+      punkt: p.punkt,
+      ferdig: p.ferdig,
+      startTid: p.startTid,
+      tidBrukt: p.tidBrukt
+    })));
     
-    // Vent litt lengre på første rendering for å sikre at alt er lastet
+    // Initialiser agendaStatus med verdier fra agendaPunkter
+    setAgendaStatus(
+      agendaPunkter.map(a => ({
+        ...a,
+        id: a.id || generateUniqueId(),
+        kommentar: a.kommentar || '',
+        startTid: a.startTid || null,
+        ferdig: a.ferdig || false,
+        tidBrukt: a.tidBrukt || null,
+        vedlegg: repairPDFData(a.vedlegg) || [], // Reparer PDF-data i vedlegg
+        erLast: a.erLast || false,
+        notater: a.notater || '',
+        beslutninger: a.beslutninger || '',
+        aksjoner: a.aksjoner || []
+      }))
+    );
+  }, [agendaPunkter]);
+
+  // Funksjon for å reparere PDF-data i vedlegg
+  const repairPDFData = (vedlegg) => {
+    if (!vedlegg || !Array.isArray(vedlegg)) return vedlegg;
+    
+    return vedlegg.map(v => {
+      // Hvis det er en PDF-fil, sjekk og reparer data URL
+      if (v.mimeType === 'application/pdf' && v.data) {
+        // Sjekk om dataURL har riktig prefix
+        if (!v.data.startsWith('data:application/pdf;base64,')) {
+          // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
+          const base64Data = v.data.includes('base64,') 
+            ? v.data.split('base64,')[1] 
+            : v.data;
+          return {
+            ...v,
+            data: `data:application/pdf;base64,${base64Data}`
+          };
+        }
+      }
+      return v;
+    });
+  };
+
+  // Funksjon for å reparere PDF-data i alle agendapunkter
+  const repairAllPDFData = () => {
+    const oppdaterteAgendaPunkter = [...agendaStatus];
+    let harEndringer = false;
+    
+    // Gå gjennom alle agendapunkter og vedlegg
+    oppdaterteAgendaPunkter.forEach((punkt, punktIndex) => {
+      if (punkt.vedlegg && Array.isArray(punkt.vedlegg)) {
+        punkt.vedlegg.forEach((vedlegg, vedleggIndex) => {
+          // Hvis det er en PDF, sjekk og reparer data URL
+          if (vedlegg.mimeType === 'application/pdf' && vedlegg.data) {
+            // Sjekk om dataURL har riktig prefix
+            if (!vedlegg.data.startsWith('data:application/pdf;base64,')) {
+              // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
+              const base64Data = vedlegg.data.includes('base64,') 
+                ? vedlegg.data.split('base64,')[1] 
+                : vedlegg.data;
+              
+              // Oppdater vedlegget med riktig data URL format
+              oppdaterteAgendaPunkter[punktIndex].vedlegg[vedleggIndex].data = 
+                `data:application/pdf;base64,${base64Data}`;
+              
+              harEndringer = true;
+            }
+          }
+        });
+      }
+    });
+    
+    // Oppdater state hvis det er gjort endringer
+    if (harEndringer) {
+      console.log('PDF-data reparert i agendapunkter');
+      setAgendaStatus(oppdaterteAgendaPunkter);
+    }
+  };
+
+  // Kjør PDF-reparasjon når komponenten lastes
+  useEffect(() => {
+    // Vent litt for å sikre at agendaStatus er initialisert
     const timer = setTimeout(() => {
       repairAllPDFData();
-    }, 2500);
+    }, 1000);
     
     return () => clearTimeout(timer);
   }, []);
@@ -1260,37 +1210,10 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
   return (
     <div className={`min-h-screen bg-gray-100 py-4 sm:py-8 ${isLocked ? 'opacity-75' : ''}`}>
       {showToast && (
-        <Toast
-          message={toastMessage || "Møtet er lagret!"}
-          onClose={() => setShowToast(false)}
+        <Toast 
+          message="Møtet er lagret!" 
+          onClose={() => setShowToast(false)} 
         />
-      )}
-      
-      {/* Feilmelding */}
-      {showFeilmelding && feilmelding && (
-        <div className="fixed top-20 right-4 z-50 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-md max-w-md">
-          <div className="flex items-start">
-            <div className="py-1">
-              <svg className="fill-current h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                <path d="M2.93 17.07A10 10 0 1117.07 2.93 10 10 0 012.93 17.07zM11.5 11.5v-6h-3v6h3zm0 4v-2h-3v2h3z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-bold">Feil</p>
-              <p className="text-sm">{feilmelding}</p>
-            </div>
-            <div className="ml-auto">
-              <button
-                onClick={() => setShowFeilmelding(false)}
-                className="text-red-700 hover:text-red-900"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
       )}
       
       {showQRCode && (
@@ -1374,54 +1297,26 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                     </div>
                   ) : activeAttachment.mimeType === 'application/pdf' ? (
                     <div className="w-full h-[80vh] flex flex-col">
-                      {/* Viser loading hvis PDF-reparasjon pågår */}
-                      {isPDFRepairing ? (
-                        <div className="p-8 flex flex-col items-center justify-center h-full">
-                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-                          <p className="text-gray-700 mb-2">Forbedrer PDF-visningen...</p>
-                          <p className="text-gray-500 text-sm">Dette kan ta et øyeblikk</p>
-                        </div>
+                      {/* Sjekk om PDF-dataen har riktig format */}
+                      {activeAttachment.data && activeAttachment.data.startsWith('data:application/pdf;base64,') ? (
+                        <iframe
+                          src={activeAttachment.data}
+                          className="w-full h-full border-0"
+                          title={activeAttachment.navn}
+                        ></iframe>
                       ) : (
-                        /* Sjekk om PDF-dataen har riktig format */
-                        activeAttachment.data && activeAttachment.data.startsWith('data:application/pdf;base64,') ? (
-                          <>
-                            <iframe
-                              src={activeAttachment.data}
-                              className="w-full h-full border-0"
-                              title={activeAttachment.navn}
-                              onError={(e) => {
-                                console.error('Feil ved visning av PDF i iframe:', e);
-                              }}
-                            ></iframe>
-                            <div className="bg-gray-50 p-2 border-t border-gray-200 text-xs text-gray-500 text-center">
-                              Tips: Hvis PDF-visning er treg, kan du laste ned filen og åpne den lokalt.
-                            </div>
-                          </>
-                        ) : (
-                          <div className="p-8 flex flex-col items-center justify-center h-full">
-                            <FileText size={64} className="text-gray-400 mb-4" />
-                            <p className="mb-4 text-gray-700">PDF-filen kan ikke forhåndsvises i dette formatet.</p>
-                            <a
-                              href={activeAttachment.data}
-                              download={activeAttachment.navn}
-                              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
-                            >
-                              <Download size={16} />
-                              Last ned PDF-filen
-                            </a>
-                            <button 
-                              onClick={() => {
-                                visVedlegg(activeAttachment, activeAttachment.agendaIndex, activeAttachment.vedleggIndex);
-                              }}
-                              className="mt-4 px-4 py-2 text-blue-600 hover:text-blue-800 flex items-center gap-1 underline"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                              </svg>
-                              Prøv på nytt
-                            </button>
-                          </div>
-                        )
+                        <div className="p-8 flex flex-col items-center justify-center h-full">
+                          <FileText size={64} className="text-gray-400 mb-4" />
+                          <p className="mb-4 text-gray-700">PDF-filen kan ikke forhåndsvises i dette formatet.</p>
+                          <a
+                            href={activeAttachment.data}
+                            download={activeAttachment.navn}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+                          >
+                            <Download size={16} />
+                            Last ned PDF-filen
+                          </a>
+                        </div>
                       )}
                     </div>
                   ) : (
