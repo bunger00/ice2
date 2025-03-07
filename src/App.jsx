@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
-import { PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut, Share, Save } from 'lucide-react';
+import { PlusCircle, Database, Play, FolderOpen, FileDown, ChevronUp, ChevronDown, LogOut, Share, Save, Plus } from 'lucide-react';
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import MoteInformasjon from './components/MoteInformasjon';
 import Deltakere from './components/Deltakere';
@@ -319,7 +319,7 @@ function App() {
       gjennomforingsStatus: moteData.gjennomforingsStatus || {
         statusOppnadd: '',
         nyDato: '',
-        mal: moteData.mal || ''
+      mal: moteData.mal || ''
       }
     });
 
@@ -351,7 +351,7 @@ function App() {
     setErGjennomfort(moteData.erGjennomfort || false);
     setVisLagredeMoter(false);
     setVisMoteSkjema(true);
-    
+
     // Start historikk-lytting
     const unsubscribeHistorikk = await hentHistorikk(moteData.id);
     
@@ -611,7 +611,7 @@ function App() {
           gjennomforingsStatus: data.gjennomforingsStatus || {
             statusOppnadd: '',
             nyDato: '',
-            mal: data.mal || ''
+          mal: data.mal || ''
           }
         });
         
@@ -1097,45 +1097,47 @@ function App() {
 
               <div className="container mx-auto px-4 py-8">
                 <div className="mb-8">
-                  <button
-                    onClick={() => setVisLagredeMoter(!visLagredeMoter)}
-                    className="w-full flex items-center justify-between p-4 bg-white border rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex items-center gap-2 text-gray-700">
-                      <FolderOpen size={18} />
-                      <span className="font-medium">Lagrede møter</span>
-                    </div>
-                    {visLagredeMoter ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                  </button>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                      <FolderOpen size={20} />
+                      Møteoversikt
+                    </h2>
+                    <button
+                      onClick={nyttMote}
+                      className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus size={18} />
+                      Nytt møte
+                    </button>
+                  </div>
                   
-                  {visLagredeMoter && (
-                    <div className="mt-2">
-                      <LagredeMoter 
-                        onVelgMote={lastMote} 
-                        moter={lagredeMoter}
-                        onSlettMote={slettMote}
-                        onStatusChange={handleMoteStatusChange}
-                      />
-                    </div>
-                  )}
+                  {/* Lagrede møter - alltid synlig */}
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <LagredeMoter
+                      onVelgMote={lastMote}
+                      moter={lagredeMoter}
+                      onSlettMote={slettMote}
+                      onStatusChange={handleMoteStatusChange}
+                    />
+                  </div>
                 </div>
 
                 {visMoteSkjema && (
                   <div className="space-y-6">
-                    <MoteInformasjon 
+                    <MoteInformasjon
                       moteInfo={moteInfo}
                       setMoteInfo={setMoteInfo}
                       deltakere={deltakere}
                       setDeltakere={setDeltakere}
                       disabled={erGjennomfort}
                     />
-                    <Deltakere 
+                    <Deltakere
                       deltakere={deltakere}
                       setDeltakere={setDeltakere}
                       disabled={erGjennomfort}
                     />
                     <DragDropContext onDragEnd={handleDragEnd}>
-                      <Agenda 
+                      <Agenda
                         agendaPunkter={agendaPunkter}
                         setAgendaPunkter={handleAgendaChange}
                         startTid={moteInfo.startTid}
