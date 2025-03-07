@@ -468,14 +468,40 @@ function LagredeMoter({ moter, onVelgMote, onSlettMote, onStatusChange }) {
         {visningsType === 'kort' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Planlagte møter */}
-            {(filterStatus === 'alle' || filterStatus === 'planlagt') && ikkeGjennomforteMoter.map((mote, index) => 
-              renderMoteKort(mote, index, false)
-            )}
+            <Droppable droppableId="ikke_gjennomforte">
+              {(provided) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                >
+                  {(filterStatus === 'alle' || filterStatus === 'planlagt') && 
+                    ikkeGjennomforteMoter.map((mote, index) =>
+                      renderMoteKort(mote, index, false)
+                    )
+                  }
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
             
             {/* Gjennomførte møter */}
-            {(filterStatus === 'alle' || filterStatus === 'gjennomfort') && gjennomforteMoter.map((mote, index) => 
-              renderMoteKort(mote, index, true)
-            )}
+            <Droppable droppableId="gjennomforte">
+              {(provided) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4"
+                >
+                  {(filterStatus === 'alle' || filterStatus === 'gjennomfort') && 
+                    gjennomforteMoter.map((mote, index) =>
+                      renderMoteKort(mote, index, true)
+                    )
+                  }
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
             
             {/* Ingen møter */}
             {filtrerteMoter.length === 0 && (
@@ -488,40 +514,40 @@ function LagredeMoter({ moter, onVelgMote, onSlettMote, onStatusChange }) {
         ) : (
           <div className="space-y-2">
             {/* Planlagte møter */}
-            {(filterStatus === 'alle' || filterStatus === 'planlagt') && (
-              <Droppable droppableId="ikke_gjennomforte">
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="space-y-2"
-                  >
-                    {ikkeGjennomforteMoter.map((mote, index) => 
+            <Droppable droppableId="ikke_gjennomforte">
+              {(provided) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="space-y-2"
+                >
+                  {(filterStatus === 'alle' || filterStatus === 'planlagt') && 
+                    ikkeGjennomforteMoter.map((mote, index) =>
                       renderMoteListe(mote, index, false)
-                    )}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            )}
+                    )
+                  }
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
             
             {/* Gjennomførte møter */}
-            {(filterStatus === 'alle' || filterStatus === 'gjennomfort') && (
-              <Droppable droppableId="gjennomforte">
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="space-y-2"
-                  >
-                    {gjennomforteMoter.map((mote, index) => 
+            <Droppable droppableId="gjennomforte">
+              {(provided) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="space-y-2"
+                >
+                  {(filterStatus === 'alle' || filterStatus === 'gjennomfort') && 
+                    gjennomforteMoter.map((mote, index) =>
                       renderMoteListe(mote, index, true)
-                    )}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            )}
+                    )
+                  }
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
             
             {/* Ingen møter */}
             {filtrerteMoter.length === 0 && (
