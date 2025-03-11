@@ -10,65 +10,61 @@ import QRCodeModal from './QRCodeModal';
 import SurveyResults from './SurveyResults';
 
 // Hjelpefunksjon for å komprimere bilder - uten å bruke Image-konstruktøren
-const compressImage = async (dataUrl, maxWidth = 800, quality = 0.7) => {
-  return new Promise((resolve, reject) => {
-    try {
-      if (!dataUrl || typeof dataUrl !== 'string') {
-        console.error('Ugyldig dataUrl:', typeof dataUrl);
-        reject(new Error('Ugyldig dataUrl-format'));
-        return;
-      }
-      
-      // Bruk en allerede eksisterende img-element eller lag en via DOM
-      const img = document.createElement('img');
-      
-      // Håndter lasting av bilde
+const compressImage = async (dataUrl, maxWidth = 1600, quality = 0.9) => {
+  // Skip komprimering for små bilder
+  if (dataUrl.length < 100000) {
+    console.log("Bildet er lite, hopper over komprimering");
+    return dataUrl;
+  }
+  
+  try {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
       img.onload = () => {
         try {
-          console.log(`Bilde lastet: ${img.width}x${img.height}`);
-          
-          // Beregn ny bredde (maks 800px) og høyde med samme forhold
-          let newWidth = img.width;
-          let newHeight = img.height;
-          
-          if (newWidth > maxWidth) {
-            newHeight = Math.round((newHeight * maxWidth) / newWidth);
-            newWidth = maxWidth;
+          // Hvis bildet allerede er mindre enn maxWidth, ikke skaler det ned
+          if (img.width <= maxWidth) {
+            console.log("Bilde er allerede innenfor størrelsesgrense, beholder originalstørrelse");
+            resolve(dataUrl);
+            return;
           }
           
-          console.log(`Ny bildestørrelse: ${newWidth}x${newHeight}`);
-
-          // Tegn bildet på canvas med ny størrelse
+          // Beregn ny høyde for å beholde størrelsesforholdet
+          const scaleFactor = maxWidth / img.width;
+          const height = img.height * scaleFactor;
+          
+          // Lag en canvas for å tegne det skalerte bildet
           const canvas = document.createElement('canvas');
-          canvas.width = newWidth;
-          canvas.height = newHeight;
-
+          canvas.width = maxWidth;
+          canvas.height = height;
+          
+          // Tegn bildet på canvas
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, newWidth, newHeight);
-
-          // Konverter canvas til komprimert dataURL
-          const komprimertData = canvas.toDataURL('image/jpeg', quality);
-          console.log('Bilde komprimert vellykket');
-          resolve(komprimertData);
-        } catch (err) {
-          console.error('Feil ved komprimering av bilde:', err);
-          resolve(dataUrl); // Returner originalt bilde ved feil
+          ctx.drawImage(img, 0, 0, maxWidth, height);
+          
+          // Konverter canvas til data URL med høyere kvalitet
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          // Logg komprimeringsresultat
+          console.log(`Bilde komprimert: Original ${Math.round(dataUrl.length/1024)}KB -> Ny ${Math.round(compressedDataUrl.length/1024)}KB`);
+          console.log(`Bildedimensjoner: ${img.width}x${img.height} -> ${maxWidth}x${height}`);
+          
+          resolve(compressedDataUrl);
+        } catch (error) {
+          console.error("Feil ved bildebehandling:", error);
+          resolve(dataUrl); // Returner originalbilde ved feil
         }
       };
-      
-      // Håndter feil ved lasting av bilde
       img.onerror = (err) => {
-        console.error('Feil ved lasting av bilde:', err);
-        resolve(dataUrl); // Returner originalt bilde ved feil
+        console.error("Kunne ikke laste bilde:", err);
+        resolve(dataUrl); // Returner originalbilde ved feil
       };
-      
-      // Sett src etter at event handlers er definert
       img.src = dataUrl;
-    } catch (err) {
-      console.error('Uventet feil i compressImage:', err);
-      resolve(dataUrl); // Returner originalt bilde ved feil
-    }
-  });
+    });
+  } catch (error) {
+    console.error("Uventet feil i compressImage:", error);
+    return dataUrl; // Returner originalbilde ved feil
+  }
 };
 
 // Legg til en ny AksjonDialog komponent
@@ -503,23 +499,29 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                   return;
                 }
                 
-                // Komprimere bildet før lagring
+                // Komprimere bildet før lagring - bruk høyere kvalitet (0.95) for skjermbilder
                 let bildeData;
                 try {
-                  bildeData = await compressImage(e.target.result);
+                  // Bruk maxWidth=2000 og quality=0.95 for skjermbilder
+                  bildeData = await compressImage(e.target.result, 2000, 0.95);
                   console.log("Bilde komprimert vellykket, størrelse:", bildeData.length);
                 } catch (err) {
                   console.error("Feil ved komprimering, bruker originalt bilde:", err);
                   bildeData = e.target.result; // Bruk ukomprimert bilde ved feil
                 }
 
+                // Sett skjermbildenavnet
+                const timestamp = new Date();
+                const formattedDate = `${timestamp.getDate().toString().padStart(2, '0')}.${(timestamp.getMonth() + 1).toString().padStart(2, '0')}.${timestamp.getFullYear()} ${timestamp.getHours().toString().padStart(2, '0')}:${timestamp.getMinutes().toString().padStart(2, '0')}`;
+                const skjermbildeNavn = `Skjermbilde ${formattedDate}`;
+                
                 // Oppdater agendapunktet med det nye vedlegget
                 const oppdaterteAgendaPunkter = [...agendaStatus];
                 const nyVedlegg = {
                   type: 'image',
                   data: bildeData,
-                  timestamp: new Date().toISOString(),
-                  navn: `Skjermbilde ${oppdaterteAgendaPunkter[index].vedlegg.length + 1}`,
+                  timestamp: timestamp.toISOString(),
+                  navn: skjermbildeNavn,
                   id: Math.random().toString(36).substring(2, 15),
                   strokes: [] // Initialiser med et tomt strokes-array
                 };
@@ -1280,7 +1282,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
       {/* Vedlegg-modal */}
       {showAttachmentModal && activeAttachment && (
         <div className="fixed inset-0 z-50 overflow-hidden bg-black bg-opacity-75 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-[90vw] max-h-[90vh] flex flex-col w-auto" style={{ minWidth: '50vw' }}>
+          <div className="bg-white rounded-lg shadow-xl max-w-[95vw] max-h-[95vh] flex flex-col w-auto" style={{ minWidth: '80vw' }}>
             <div className="flex justify-between items-center p-4 border-b">
               <div className="flex items-center">
                 <h3 className="text-lg font-medium">{activeAttachment.navn}</h3>
@@ -1312,7 +1314,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
               </div>
             </div>
             
-            <div className="overflow-auto p-0 flex-grow flex items-center justify-center bg-gray-100" style={{ maxHeight: 'calc(90vh - 130px)' }}>
+            <div className="overflow-auto p-0 flex-grow flex items-center justify-center bg-gray-100" style={{ maxHeight: 'calc(95vh - 130px)' }}>
               {showDrawingEditor && activeAttachment.type === 'image' ? (
                 <DrawingEditor
                   imageData={activeAttachment.data}
@@ -1323,12 +1325,12 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
               ) : (
                 <div className="p-0 w-full h-full flex items-center justify-center">
                   {activeAttachment.type === 'image' ? (
-                    <div className="overflow-auto max-h-[70vh] w-full flex items-center justify-center bg-gray-600 bg-opacity-10">
+                    <div className="overflow-auto max-h-[85vh] w-full flex items-center justify-center bg-gray-600 bg-opacity-10">
                       <img
                         src={activeAttachment.data}
                         alt={activeAttachment.navn}
-                        className="max-w-full h-auto object-contain shadow-lg"
-                        style={{ maxHeight: '70vh', maxWidth: '90vw', objectFit: 'contain' }}
+                        className="h-auto object-contain shadow-lg"
+                        style={{ maxHeight: '85vh', maxWidth: '90vw', minWidth: 'auto', objectFit: 'contain' }}
                         onError={(e) => {
                           console.error("Feil ved lasting av bilde:", e);
                           e.target.onerror = null;
@@ -1340,26 +1342,27 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                         }}
                       />
                     </div>
-                  ) : activeAttachment.mimeType === 'application/pdf' ? (
-                    <div className="w-full h-[80vh] flex flex-col">
+                  ) : activeAttachment.mimeType === 'application/pdf' || activeAttachment.type === 'pdf' ? (
+                    <div className="w-full h-[85vh] flex flex-col items-center justify-center">
                       {/* Sjekk om PDF-dataen har riktig format */}
-                      {activeAttachment.data && activeAttachment.data.startsWith('data:application/pdf;base64,') ? (
+                      {activeAttachment.data && (activeAttachment.data.startsWith('data:application/pdf;base64,') || activeAttachment.data.includes('base64,')) ? (
                         <iframe
-                          src={activeAttachment.data}
+                          src={activeAttachment.data.startsWith('data:application/pdf;base64,') ? activeAttachment.data : `data:application/pdf;base64,${activeAttachment.data.split('base64,')[1]}`}
                           className="w-full h-full border-0"
                           title={activeAttachment.navn}
-                        ></iframe>
+                          style={{ width: '90vw', minHeight: '85vh' }}
+                        />
                       ) : (
                         <div className="p-8 flex flex-col items-center justify-center h-full">
-                          <FileText size={64} className="text-gray-400 mb-4" />
-                          <p className="mb-4 text-gray-700">PDF-filen kan ikke forhåndsvises i dette formatet.</p>
+                          <AlertCircle size={48} className="text-amber-500 mb-4" />
+                          <h3 className="text-lg font-medium text-gray-800 mb-2">Kunne ikke vise PDF</h3>
+                          <p className="text-sm text-gray-500 mb-4 text-center">Det ser ut til at filformatet er skadet eller ikke støttet.</p>
                           <a
                             href={activeAttachment.data}
                             download={activeAttachment.navn}
-                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center gap-2"
+                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                           >
-                            <Download size={16} />
-                            Last ned PDF-filen
+                            Last ned filen i stedet
                           </a>
                         </div>
                       )}
@@ -1801,7 +1804,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                           type="text"
                                           value={vedlegg.navn}
                                           onChange={(e) => handleRenameVedlegg(index, vedleggIndex, e.target.value)}
-                            disabled={isLocked}
+                                          disabled={isLocked}
                                           className="flex-1 min-w-0 text-sm text-gray-700 bg-transparent border-0 focus:ring-0 focus:outline-none truncate"
                                         />
                                       </div>
@@ -1811,38 +1814,43 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                           className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"
                                         >
                                           <Eye size={14} />
-                          </button>
+                                        </button>
                                         {!isLocked && (
-                          <button
+                                          <button
                                             onClick={() => slettVedlegg(index, vedleggIndex)}
                                             className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"
                                           >
                                             <X size={14} />
-                          </button>
-                      )}
-                    </div>
-                  </div>
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
                                     {/* Vis miniatyrbilde hvis vedlegget er et bilde */}
                                     {vedlegg.type === 'image' && (
                                       <div 
-                                        className="w-full h-24 rounded bg-cover bg-center border border-gray-100 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
-                                        style={{ backgroundImage: `url(${vedlegg.data})` }}
+                                        className="w-full h-32 sm:h-36 rounded bg-contain bg-center bg-no-repeat border border-gray-100 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
+                                        style={{ 
+                                          backgroundImage: `url(${vedlegg.data})`,
+                                          backgroundSize: 'contain',
+                                          backgroundColor: '#f8f9fa'
+                                        }}
                                         onClick={() => visVedlegg(vedlegg, index, vedleggIndex)}
                                       />
                                     )}
                                     {/* Dokument-ikon for dokumenter */}
                                     {vedlegg.type !== 'image' && (
                                       <div 
-                                        className="w-full h-24 rounded border border-gray-100 flex items-center justify-center bg-gray-50 cursor-pointer hover:border-blue-300 hover:bg-gray-100 transition-all"
+                                        className="w-full h-32 sm:h-36 rounded border border-gray-100 flex flex-col items-center justify-center bg-gray-50 cursor-pointer hover:border-blue-300 hover:bg-gray-100 transition-all"
                                         onClick={() => visVedlegg(vedlegg, index, vedleggIndex)}
                                       >
-                                        <FileText size={32} className="text-gray-400" />
+                                        <FileText size={40} className="text-gray-400" />
+                                        <span className="mt-2 text-xs text-gray-500">Klikk for å åpne</span>
                                       </div>
                                     )}
-                </div>
-              ))}
-            </div>
-          </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
                       </>
