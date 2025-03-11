@@ -202,18 +202,18 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
 
   // Oppdater initialiseringen av agendaStatus for å inkludere alle nødvendige felter
   const [agendaStatus, setAgendaStatus] = useState(
-    agendaPunkter.map(a => ({ 
-      ...a, 
-      id: a.id || generateUniqueId(),
-      kommentar: a.kommentar || '', 
-      startTid: a.startTid || null,
-      ferdig: a.ferdig || false,
-      tidBrukt: a.tidBrukt || null,
-      vedlegg: a.vedlegg || [],
-      erLast: a.erLast || false,
-      notater: a.notater || '',
-      beslutninger: a.beslutninger || '',
-      aksjoner: a.aksjoner || []
+    agendaPunkter.map((punkt) => ({
+      ...punkt,
+      id: punkt.id || generateUniqueId(),
+      ferdig: punkt.ferdig || false,
+      startTid: punkt.startTid || null,
+      tidBrukt: punkt.tidBrukt || null,
+      kommentar: punkt.kommentar || '',
+      erLast: punkt.erLast || false,
+      vedlegg: punkt.vedlegg || [],
+      notater: punkt.notater || '',
+      beslutninger: punkt.beslutninger || '',
+      aksjoner: punkt.aksjoner || []
     }))
   );
 
@@ -646,19 +646,53 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
 
   // Oppdater saveDrawing funksjonen
   const saveDrawing = async (dataURL, strokes) => {
-    if (!activeAttachment) return;
+    if (!activeAttachment) {
+      console.error("saveDrawing: Ingen aktivt vedlegg");
+      return;
+    }
+    
+    console.log("saveDrawing kalt med strokes:", strokes.length);
     
     // Komprimer tegningen før lagring
-    const komprimertTegning = await compressImage(dataURL);
+    const komprimertTegning = await compressImage(dataURL, 2000, 0.95);
     
     const oppdaterteAgendaPunkter = [...agendaStatus];
     const { agendaIndex, vedleggIndex } = activeAttachment;
+    
+    console.log(`Lagrer tegning for vedlegg ${vedleggIndex} i agendapunkt ${agendaIndex}`);
     
     // Oppdater vedlegget med ny data og strokes
     oppdaterteAgendaPunkter[agendaIndex].vedlegg[vedleggIndex].data = komprimertTegning;
     oppdaterteAgendaPunkter[agendaIndex].vedlegg[vedleggIndex].strokes = strokes;
     
-    setAgendaStatus(oppdaterteAgendaPunkter);
+    console.log("Antall strokes lagret:", strokes.length);
+    
+    // Oppdater state for å trigge re-render
+    setAgendaStatus([...oppdaterteAgendaPunkter]);
+    
+    // Oppdater activeAttachment med de nye dataene
+    setActiveAttachment({
+      ...activeAttachment,
+      data: komprimertTegning,
+      strokes: strokes
+    });
+    
+    // Vis bekreftelse til brukeren
+    setShowToast(true);
+    setToastMessage("Tegning lagret");
+    setTimeout(() => setShowToast(false), 2000);
+  };
+
+  // Legg til funksjon for å lukke tegneeditoren med lagring
+  const closeDrawingEditor = (dataURL, strokes) => {
+    console.log("closeDrawingEditor kalt", dataURL ? "med data" : "uten data");
+    if (dataURL && strokes) {
+      // Kall saveDrawing for å lagre tegningen før vi lukker editoren
+      saveDrawing(dataURL, strokes);
+    } else {
+      console.log("Ingen data å lagre ved lukking av tegningseditoren");
+    }
+    setShowDrawingEditor(false);
   };
 
   // CSS for å skjule scrollbar på selve body når modal er åpen
@@ -683,164 +717,36 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         return false;
       }
 
+      // Logg vedlegg med strokes for debugging
+      console.log("Sjekker vedlegg med strokes før lagring:");
+      let harVedleggMedStrokes = false;
+      agendaStatus.forEach((punkt, idx) => {
+        if (punkt.vedlegg && punkt.vedlegg.length > 0) {
+          punkt.vedlegg.forEach((vedlegg, vIdx) => {
+            if (vedlegg.strokes && vedlegg.strokes.length > 0) {
+              console.log(`Agendapunkt ${idx} (${punkt.punkt}) - Vedlegg ${vIdx} (${vedlegg.navn}) har ${vedlegg.strokes.length} strokes`);
+              harVedleggMedStrokes = true;
+            }
+          });
+        }
+      });
+      if (!harVedleggMedStrokes) {
+        console.log("Ingen vedlegg med strokes funnet");
+      }
+
       // Sørg for at vi bruker riktig starttid - prioriter lokal verdi
       const currentStartTid = moteInfo.startTid;
       const lokaltLagretStartTid = localStorage.getItem(`mote_${moteInfo.id}_startTid`);
       const effectiveStartTid = lokaltLagretStartTid || currentStartTid || '09:00';
-      
+
       // Konsekvent bruk av tomme strenger i stedet for null
       const currentStatusOppnadd = statusOppnadd || '';
       const currentNyDato = nyDato || '';
       
-      // Oppdater agendapunkter basert på gjeldende status med grundig logging
-      console.log('Agenda status før lagring:', agendaStatus.map(p => ({
-        punkt: p.punkt,
-        ferdig: p.ferdig,
-        startTid: p.startTid,
-        tidBrukt: p.tidBrukt
-      })));
-      
-      const oppdaterteAgendaPunkter = agendaStatus.map(punkt => {
-        const oppdatertPunkt = {
-          ...punkt,
-          id: punkt.id || generateUniqueId(),
-        punkt: punkt.punkt || '',
-        ansvarlig: punkt.ansvarlig || '',
-        varighet: punkt.varighet || 15,
-          startTid: punkt.startTid, // Bevare som den er
-          ferdig: punkt.ferdig,     // Bevare som den er
-          tidBrukt: punkt.tidBrukt, // Bevare som den er
-        kommentar: punkt.kommentar || '',
-        erLast: punkt.erLast || false,
-        notater: punkt.notater || '',
-        beslutninger: punkt.beslutninger || '',
-          vedlegg: (punkt.vedlegg || []).map(v => ({
-            type: v.type || 'image',
-            data: v.data || '',
-            navn: v.navn || 'Vedlegg',
-            id: v.id || Math.random().toString(36).substring(2, 15),
-            mimeType: v.mimeType || '',
-            strokes: v.strokes || [] // Bevar strokes
-          })),
-          aksjoner: (punkt.aksjoner || []).map(a => ({
-            ansvarlig: a.ansvarlig || '',
-            beskrivelse: a.beskrivelse || '',
-            frist: a.frist || '',
-            opprettet: a.opprettet || new Date().toISOString(),
-            status: a.status || 'åpen'
-          }))
-        };
-        return oppdatertPunkt;
-      });
-
-      console.log('Agenda før lagring til Firestore:', oppdaterteAgendaPunkter.map(p => ({
-        punkt: p.punkt,
-        ferdig: p.ferdig,
-        startTid: p.startTid,
-        tidBrukt: p.tidBrukt
-      })));
-      
-      console.log('Aktivt punkt før lagring:', aktivtPunkt);
-
-      // Lagre data med aktivt punkt
-      const gjennomforingsData = {
-        id: moteInfo.id,
-        tema: moteInfo.tema || '',
-        dato: moteInfo.dato || '',
-        startTid: effectiveStartTid,
-        innkallingsDato: moteInfo.innkallingsDato || '',
-        eier: moteInfo.eier || '',
-        fasilitator: moteInfo.fasilitator || '',
-        referent: moteInfo.referent || '',
-        hensikt: moteInfo.hensikt || '',
-        mal: moteInfo.mal || '',
-        erGjennomfort: true,
-        aktivtPunkt: aktivtPunkt, // Lagre aktivt punkt i møtedata
-        gjennomforingsStatus: {
-          statusOppnadd: currentStatusOppnadd,
-          nyDato: currentNyDato,
-          mal: moteInfo.mal || ''
-        },
-        statusInfo: {
-          fullfortePunkter: oppdaterteAgendaPunkter.filter(p => p.ferdig).length,
-          gjenstaendePunkter: oppdaterteAgendaPunkter.filter(p => !p.ferdig).length,
-          totaltAntallPunkter: oppdaterteAgendaPunkter.length
-        },
-        deltakere: deltakereStatus.map(d => ({
-          navn: d.navn || '',
-          fagFunksjon: d.fagFunksjon || '',
-          utfortStatus: d.utfortStatus || 'none',
-          oppmoteStatus: d.oppmoteStatus || 'none',
-          forberedelser: d.forberedelser || '',
-          epost: d.epost || ''
-        })),
-        agendaPunkter: oppdaterteAgendaPunkter
-      };
-
-      console.log('Lagrer gjennomføringsdata med status:', gjennomforingsData.gjennomforingsStatus);
-      console.log('Agenda-statuser som lagres:', oppdaterteAgendaPunkter.map(p => ({
-        punkt: p.punkt,
-        ferdig: p.ferdig,
-        startTid: p.startTid,
-        tidBrukt: p.tidBrukt
-      })));
-
-      // Oppdater hovedstate
-      setDeltakere(deltakereStatus);
-      setAgendaPunkter(oppdaterteAgendaPunkter);
-
-      const success = await lagreMote(true, gjennomforingsData);
-      
-      if (success) {
-        // Oppdater moteInfo også slik at den inneholder de nye gjennomforingsstatus-verdiene
-        moteInfo.gjennomforingsStatus = {
-          statusOppnadd: currentStatusOppnadd,
-          nyDato: currentNyDato,
-          mal: moteInfo.mal || ''
-        };
-        
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Detaljert feil ved lagring:', error);
-      alert(`Kunne ikke lagre møtet: ${error.message}`);
-      return false;
-    }
-  };
-
-  // Oppdater harUlagredeEndringer-funksjonen
-  const harUlagredeEndringer = () => {
-    // Sjekk om det er endringer i deltakerstatus
-    const harDeltakerEndringer = deltakereStatus.some((d, index) => {
-      const original = deltakere[index];
-      return d.utfortStatus !== (original.utfortStatus || 'none') || 
-             d.oppmoteStatus !== (original.oppmoteStatus || 'none');
-    });
-
-    // Sjekk om det er endringer i agendapunkter
-    const harAgendaEndringer = agendaStatus.some((a, index) => {
-      const original = agendaPunkter[index];
-      return a.kommentar !== (original.kommentar || '') ||
-             (a.vedlegg?.length || 0) !== (original.vedlegg?.length || 0) ||
-             a.ferdig !== (original.ferdig || false) ||
-             a.startTid !== (original.startTid || null) ||
-             a.tidBrukt !== (original.tidBrukt || null) ||
-             a.notater !== (original.notater || '') ||
-             a.beslutninger !== (original.beslutninger || '') ||
-             (a.aksjoner?.length || 0) !== (original.aksjoner?.length || 0) ||
-             a.erLast !== (original.erLast || false);
-    });
-
-    // Sjekk om det er endringer i møtestatus
-    const originalStatusOppnadd = moteInfo.gjennomforingsStatus?.statusOppnadd || '';
-    const originalNyDato = moteInfo.gjennomforingsStatus?.nyDato || '';
-    
-    const currentStatusOppnadd = statusOppnadd || '';
-    const currentNyDato = nyDato || '';
-    
+      // Logg vedlegg med strokes for debugging
+      agendaStatus.forEach((punkt, idx) => {
+        if (punkt.vedlegg && punkt.vedlegg.length > 0) {
+          punkt.vedlegg.forEach((vedlegg, vIdx) => {
     const harStatusEndringer = 
       currentStatusOppnadd !== originalStatusOppnadd || 
       currentNyDato !== originalNyDato;
@@ -1245,6 +1151,19 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     return () => clearTimeout(timer);
   }, []);
 
+  // Hjelpefunksjon for å logge strokes i vedlegg
+  const logVedleggMedStrokes = () => {
+    agendaStatus.forEach((punkt, idx) => {
+      if (punkt.vedlegg && punkt.vedlegg.length > 0) {
+        punkt.vedlegg.forEach((vedlegg, vIdx) => {
+          if (vedlegg.strokes && vedlegg.strokes.length > 0) {
+            console.log(`Agendapunkt ${idx} (${punkt.punkt}) - Vedlegg ${vIdx} (${vedlegg.navn}) har ${vedlegg.strokes.length} strokes`);
+          }
+        });
+      }
+    });
+  };
+
   return (
     <div className={`min-h-screen bg-gray-100 py-4 sm:py-8 ${isLocked ? 'opacity-75' : ''}`}>
       {showToast && (
@@ -1319,7 +1238,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                 <DrawingEditor
                   imageData={activeAttachment.data}
                   onSave={saveDrawing}
-                  onClose={() => setShowDrawingEditor(false)}
+                  onClose={closeDrawingEditor}
                   initialStrokes={activeAttachment.strokes || []}
                 />
               ) : (
