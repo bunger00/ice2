@@ -238,6 +238,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
   // Legg til state for toast
   const [showToast, setShowToast] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [toastMessage, setToastMessage] = useState("Møtet er lagret!");
 
   const [expandedSections, setExpandedSections] = useState({
     deltakere: true,
@@ -471,7 +472,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         return;
       }
       
-    const items = event.clipboardData.items;
+      const items = event.clipboardData.items;
       console.log("Antall items i clipboard:", items.length);
       
       if (!items || items.length === 0) {
@@ -479,20 +480,20 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         return;
       }
       
-    for (let i = 0; i < items.length; i++) {
+      for (let i = 0; i < items.length; i++) {
         console.log("Clipboard item type:", items[i].type);
         
-      if (items[i].type.indexOf('image') !== -1) {
+        if (items[i].type.indexOf('image') !== -1) {
           console.log("Bildeinnhold oppdaget i utklippstavlen");
           
           try {
-        const blob = items[i].getAsFile();
+            const blob = items[i].getAsFile();
             if (!blob) {
               console.error("Kunne ikke hente fil fra utklippstavlen");
               continue;
             }
             
-        const reader = new FileReader();
+            const reader = new FileReader();
             
             reader.onload = async (e) => {
               try {
@@ -502,43 +503,53 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                   return;
                 }
                 
-                // Komprimere bildet
+                // Komprimere bildet før lagring
                 let bildeData;
                 try {
                   bildeData = await compressImage(e.target.result);
-                  console.log("Bilde komprimert vellykket");
+                  console.log("Bilde komprimert vellykket, størrelse:", bildeData.length);
                 } catch (err) {
                   console.error("Feil ved komprimering, bruker originalt bilde:", err);
                   bildeData = e.target.result; // Bruk ukomprimert bilde ved feil
                 }
 
-                // Oppdater agendapunktet
-          const oppdaterteAgendaPunkter = [...agendaStatus];
-          oppdaterteAgendaPunkter[index].vedlegg.push({
-            type: 'image',
+                // Oppdater agendapunktet med det nye vedlegget
+                const oppdaterteAgendaPunkter = [...agendaStatus];
+                const nyVedlegg = {
+                  type: 'image',
                   data: bildeData,
                   timestamp: new Date().toISOString(),
                   navn: `Skjermbilde ${oppdaterteAgendaPunkter[index].vedlegg.length + 1}`,
                   id: Math.random().toString(36).substring(2, 15),
                   strokes: [] // Initialiser med et tomt strokes-array
-                });
-                console.log("Bilde lagt til i vedlegg for agendapunkt", index);
-          setAgendaStatus(oppdaterteAgendaPunkter);
+                };
+
+                // Legg til vedlegget og oppdater state
+                oppdaterteAgendaPunkter[index].vedlegg.push(nyVedlegg);
+                console.log("Bilde lagt til i vedlegg for agendapunkt", index, "- vedlegg count:", oppdaterteAgendaPunkter[index].vedlegg.length);
+                
+                // Force-update for å sikre at UI oppdateres
+                setAgendaStatus([...oppdaterteAgendaPunkter]);
+
+                // Vis en bekreftelse til brukeren
+                setShowToast(true);
+                setToastMessage("Skjermbilde limt inn");
+                setTimeout(() => setShowToast(false), 2000);
               } catch (error) {
                 console.error("Feil i onload-handler:", error);
               }
-        };
+            };
             
             reader.onerror = (error) => {
               console.error("Feil ved lesing av bildedata:", error);
             };
             
-        reader.readAsDataURL(blob);
-        event.preventDefault();
+            reader.readAsDataURL(blob);
+            event.preventDefault();
             return; // Avslutt etter å ha funnet bildet
           } catch (error) {
             console.error("Feil ved håndtering av bildedata:", error);
-      }
+          }
         }
       }
       console.log("Ingen bilder funnet i utklippstavlen");
@@ -558,10 +569,12 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [showDrawingEditor, setShowDrawingEditor] = useState(false);
 
-  // Oppdater visVedlegg funksjonen for bedre PDF-håndtering
+  // Oppdater visVedlegg funksjonen for bedre bilde- og PDF-håndtering
   const visVedlegg = (vedlegg, agendaIndex, vedleggIndex) => {
+    console.log("visVedlegg kalt for:", vedlegg.navn, "type:", vedlegg.type || vedlegg.mimeType);
+    
     // Hvis det er en PDF, sjekk og reparer data URL
-    if (vedlegg.mimeType === 'application/pdf' && vedlegg.data) {
+    if ((vedlegg.mimeType === 'application/pdf' || vedlegg.type === 'pdf') && vedlegg.data) {
       // Sjekk om dataURL har riktig prefix
       if (!vedlegg.data.startsWith('data:application/pdf;base64,')) {
         // Hvis ikke, fjern eventuelt eksisterende prefix og legg til riktig prefix
@@ -585,6 +598,29 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         // Hvis formatet allerede er riktig
         setActiveAttachment({...vedlegg, agendaIndex, vedleggIndex});
       }
+    } else if (vedlegg.type === 'image') {
+      // For bilder, sjekk at data er gyldig
+      console.log("Viser bilde, data-lengde:", vedlegg.data ? vedlegg.data.length : 'ingen data');
+      
+      if (!vedlegg.data) {
+        console.error("Bildedata mangler");
+        setShowToast(true);
+        setToastMessage("Feil: Bildedata mangler");
+        setTimeout(() => setShowToast(false), 3000);
+        return;
+      }
+      
+      // Sikre at bildet har riktig format
+      if (!vedlegg.data.startsWith('data:image/')) {
+        console.error("Bildedata har feil format");
+        setShowToast(true);
+        setToastMessage("Feil: Bildedata har feil format");
+        setTimeout(() => setShowToast(false), 3000);
+        return;
+      }
+      
+      // Sett aktivt vedlegg
+      setActiveAttachment({...vedlegg, agendaIndex, vedleggIndex});
     } else {
       // For andre typer vedlegg
       setActiveAttachment({...vedlegg, agendaIndex, vedleggIndex});
@@ -1211,7 +1247,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
     <div className={`min-h-screen bg-gray-100 py-4 sm:py-8 ${isLocked ? 'opacity-75' : ''}`}>
       {showToast && (
         <Toast 
-          message="Møtet er lagret!" 
+          message={toastMessage} 
           onClose={() => setShowToast(false)} 
         />
       )}
@@ -1285,14 +1321,23 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                   initialStrokes={activeAttachment.strokes || []}
                 />
               ) : (
-                <div className="p-0">
+                <div className="p-0 w-full h-full flex items-center justify-center">
                   {activeAttachment.type === 'image' ? (
-                    <div className="overflow-auto max-h-[70vh] max-w-full flex items-center justify-center">
+                    <div className="overflow-auto max-h-[70vh] w-full flex items-center justify-center bg-gray-600 bg-opacity-10">
                       <img
                         src={activeAttachment.data}
                         alt={activeAttachment.navn}
-                        className="max-w-full h-auto object-contain"
-                        style={{ maxHeight: '70vh', width: 'auto', objectFit: 'contain' }}
+                        className="max-w-full h-auto object-contain shadow-lg"
+                        style={{ maxHeight: '70vh', maxWidth: '90vw', objectFit: 'contain' }}
+                        onError={(e) => {
+                          console.error("Feil ved lasting av bilde:", e);
+                          e.target.onerror = null;
+                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0yNCAxaDAtMjMgMGgtMXYxM2MwIDUuNTI1IDQuNDczIDEwIDkuOTk3IDEwIDUuNTI1IDAgMTAuMDAzLTQuNDc1IDEwLjAwMy0xMHYtMTN6bS0yIDEyYzAgNC40MTEtMy41OTEgOC04LjAwMyA4LTQuNDEyIDAtNy45OTctMy41ODktNy45OTctOHYtMTFoMTZ2MTF6bS01LTcuNWMwIC44MjguNjcyIDEuNSAxLjUgMS41cy0xLjUuNjcyIDEuNSAxLjVjMCAuODI4LS42NzIgMS41LTEuNSAxLjVzLTEuNS0uNjcyLTEuNS0xLjVoLTJjMCAxLjkzMyAxLjU2NyAzLjUgMy41IDMuNXMzLjUtMS41NjcgMy41LTMuNWMwLS44MjgtLjY3Mi0xLjUtMS41LTEuNXMtMS41LS42NzItMS41LTEuNWMwLS44MjguNjcyLTEuNSAxLjUtMS41czEuNS42NzIgMS41IDEuNWgyYzAtMS45MzMtMS41NjctMy41LTMuNS0zLjVzLTMuNSAxLjU2Ny0zLjUgMy41em0tNC00LjV2MmgydjJoMnYtMmgydi0yaC0ydi0yaC0ydjJoLTJ6Ii8+PC9zdmc+';
+                          e.target.style.width = '60px';
+                          e.target.style.height = '60px';
+                          e.target.style.opacity = '0.5';
+                          e.target.style.padding = '10px';
+                        }}
                       />
                     </div>
                   ) : activeAttachment.mimeType === 'application/pdf' ? (
@@ -1641,22 +1686,29 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                 )}
                               </div>
                             </div>
-                      <div className="relative">
-                        <textarea
+                            <div className="relative">
+                              <textarea
                                 value={punkt.kommentar || ''}
-                          onChange={(e) => handleAgendaKommentar(index, e.target.value)}
-                          onPaste={(e) => !isLocked && handlePasteImage(index, e)}
-                          disabled={isLocked}
+                                onChange={(e) => handleAgendaKommentar(index, e.target.value)}
+                                onPaste={(e) => !isLocked && handlePasteImage(index, e)}
+                                disabled={isLocked}
                                 className={`w-full border border-gray-200 rounded-lg p-2 sm:p-4 min-h-[100px] text-sm sm:text-base text-gray-700 placeholder-gray-400 ${
                                   isLocked ? 'bg-gray-50' : 'focus:ring-2 focus:ring-blue-100 focus:border-blue-300'
                                 }`}
                                 placeholder="Skriv kommentar eller lim inn skjermbilde (CTRL+V)"
                                 rows="3"
                               />
-                              <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 text-gray-400">
-                          <Image size={16} />
-                        </div>
-                      </div>
+                              <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 flex items-center gap-1 text-gray-400 bg-white bg-opacity-70 p-1 rounded">
+                                <Image size={16} />
+                                <span className="text-xs text-gray-500">CTRL+V for å lime inn skjermbilde</span>
+                              </div>
+                            </div>
+                            {!isLocked && (
+                              <div className="mt-2 text-xs text-blue-600 flex items-center">
+                                <AlertCircle size={12} className="mr-1" />
+                                <span>Skjermbilder du limer inn vil vises i vedleggsseksjonen under. Klikk på miniatyren for å se hele bildet.</span>
+                              </div>
+                            )}
                           </div>
 
                           {/* Beslutninger og aksjoner i 2 kolonner - I MIDTEN */}
@@ -1773,7 +1825,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                     {/* Vis miniatyrbilde hvis vedlegget er et bilde */}
                                     {vedlegg.type === 'image' && (
                                       <div 
-                                        className="w-full h-24 rounded bg-cover bg-center border border-gray-100"
+                                        className="w-full h-24 rounded bg-cover bg-center border border-gray-100 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
                                         style={{ backgroundImage: `url(${vedlegg.data})` }}
                                         onClick={() => visVedlegg(vedlegg, index, vedleggIndex)}
                                       />
@@ -1781,7 +1833,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                     {/* Dokument-ikon for dokumenter */}
                                     {vedlegg.type !== 'image' && (
                                       <div 
-                                        className="w-full h-24 rounded border border-gray-100 flex items-center justify-center bg-gray-50"
+                                        className="w-full h-24 rounded border border-gray-100 flex items-center justify-center bg-gray-50 cursor-pointer hover:border-blue-300 hover:bg-gray-100 transition-all"
                                         onClick={() => visVedlegg(vedlegg, index, vedleggIndex)}
                                       >
                                         <FileText size={32} className="text-gray-400" />
