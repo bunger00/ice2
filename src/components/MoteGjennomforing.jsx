@@ -9,8 +9,8 @@ import DrawingEditor from './DrawingEditor';
 import QRCodeModal from './QRCodeModal';
 import SurveyResults from './SurveyResults';
 
-// Hjelpefunksjon for å komprimere bilder - uten å bruke Image-konstruktøren
-const compressImage = async (dataUrl, maxWidth = 1600, quality = 0.9) => {
+// Hjelpefunksjon for å komprimere bilder uten å bruke Image-konstruktøren
+const compressImage = async (dataUrl, maxWidth = 2000, quality = 0.95) => {
   // Skip komprimering for små bilder
   if (dataUrl.length < 100000) {
     console.log("Bildet er lite, hopper over komprimering");
@@ -19,7 +19,10 @@ const compressImage = async (dataUrl, maxWidth = 1600, quality = 0.9) => {
   
   try {
     return new Promise((resolve, reject) => {
-      const img = new Image();
+      // Bruk DOM API for å opprette bilde-element og unngå constructor-relaterte feil
+      const img = document.createElement('img');
+      
+      // Sett opp onload handler før vi setter src
       img.onload = () => {
         try {
           // Hvis bildet allerede er mindre enn maxWidth, ikke skaler det ned
@@ -55,10 +58,14 @@ const compressImage = async (dataUrl, maxWidth = 1600, quality = 0.9) => {
           resolve(dataUrl); // Returner originalbilde ved feil
         }
       };
-      img.onerror = (err) => {
-        console.error("Kunne ikke laste bilde:", err);
+      
+      // Sett opp error handler
+      img.onerror = () => {
+        console.error("Kunne ikke laste bilde for komprimering");
         resolve(dataUrl); // Returner originalbilde ved feil
       };
+      
+      // Sett src etter at handlers er satt opp
       img.src = dataUrl;
     });
   } catch (error) {
@@ -468,7 +475,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         return;
       }
       
-      const items = event.clipboardData.items;
+    const items = event.clipboardData.items;
       console.log("Antall items i clipboard:", items.length);
       
       if (!items || items.length === 0) {
@@ -476,20 +483,20 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
         return;
       }
       
-      for (let i = 0; i < items.length; i++) {
+    for (let i = 0; i < items.length; i++) {
         console.log("Clipboard item type:", items[i].type);
         
-        if (items[i].type.indexOf('image') !== -1) {
+      if (items[i].type.indexOf('image') !== -1) {
           console.log("Bildeinnhold oppdaget i utklippstavlen");
           
           try {
-            const blob = items[i].getAsFile();
+        const blob = items[i].getAsFile();
             if (!blob) {
               console.error("Kunne ikke hente fil fra utklippstavlen");
               continue;
             }
             
-            const reader = new FileReader();
+        const reader = new FileReader();
             
             reader.onload = async (e) => {
               try {
@@ -516,9 +523,9 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                 const skjermbildeNavn = `Skjermbilde ${formattedDate}`;
                 
                 // Oppdater agendapunktet med det nye vedlegget
-                const oppdaterteAgendaPunkter = [...agendaStatus];
+          const oppdaterteAgendaPunkter = [...agendaStatus];
                 const nyVedlegg = {
-                  type: 'image',
+            type: 'image',
                   data: bildeData,
                   timestamp: timestamp.toISOString(),
                   navn: skjermbildeNavn,
@@ -546,12 +553,12 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
               console.error("Feil ved lesing av bildedata:", error);
             };
             
-            reader.readAsDataURL(blob);
-            event.preventDefault();
+        reader.readAsDataURL(blob);
+        event.preventDefault();
             return; // Avslutt etter å ha funnet bildet
           } catch (error) {
             console.error("Feil ved håndtering av bildedata:", error);
-          }
+      }
         }
       }
       console.log("Ingen bilder funnet i utklippstavlen");
@@ -1723,12 +1730,12 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                 )}
                               </div>
                             </div>
-                            <div className="relative">
-                              <textarea
+                      <div className="relative">
+                        <textarea
                                 value={punkt.kommentar || ''}
-                                onChange={(e) => handleAgendaKommentar(index, e.target.value)}
-                                onPaste={(e) => !isLocked && handlePasteImage(index, e)}
-                                disabled={isLocked}
+                          onChange={(e) => handleAgendaKommentar(index, e.target.value)}
+                          onPaste={(e) => !isLocked && handlePasteImage(index, e)}
+                          disabled={isLocked}
                                 className={`w-full border border-gray-200 rounded-lg p-2 sm:p-4 min-h-[100px] text-sm sm:text-base text-gray-700 placeholder-gray-400 ${
                                   isLocked ? 'bg-gray-50' : 'focus:ring-2 focus:ring-blue-100 focus:border-blue-300'
                                 }`}
@@ -1736,10 +1743,10 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                 rows="3"
                               />
                               <div className="absolute right-2 sm:right-4 bottom-2 sm:bottom-4 flex items-center gap-1 text-gray-400 bg-white bg-opacity-70 p-1 rounded">
-                                <Image size={16} />
+                          <Image size={16} />
                                 <span className="text-xs text-gray-500">CTRL+V for å lime inn skjermbilde</span>
-                              </div>
-                            </div>
+                        </div>
+                      </div>
                             {!isLocked && (
                               <div className="mt-2 text-xs text-blue-600 flex items-center">
                                 <AlertCircle size={12} className="mr-1" />
@@ -1838,7 +1845,7 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                           type="text"
                                           value={vedlegg.navn}
                                           onChange={(e) => handleRenameVedlegg(index, vedleggIndex, e.target.value)}
-                                          disabled={isLocked}
+                            disabled={isLocked}
                                           className="flex-1 min-w-0 text-sm text-gray-700 bg-transparent border-0 focus:ring-0 focus:outline-none truncate"
                                         />
                                       </div>
@@ -1848,17 +1855,17 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                           className="text-blue-500 hover:text-blue-700 p-1 rounded-full hover:bg-blue-50"
                                         >
                                           <Eye size={14} />
-                                        </button>
+                          </button>
                                         {!isLocked && (
-                                          <button
+                          <button
                                             onClick={() => slettVedlegg(index, vedleggIndex)}
                                             className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"
                                           >
                                             <X size={14} />
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
+                          </button>
+                      )}
+                    </div>
+                  </div>
                                     {/* Vis miniatyrbilde hvis vedlegget er et bilde */}
                                     {vedlegg.type === 'image' && (
                                       <div 
@@ -1881,10 +1888,10 @@ function MoteGjennomforing({ moteInfo, deltakere, agendaPunkter, status, setStat
                                         <span className="mt-2 text-xs text-gray-500">Klikk for å åpne</span>
                                       </div>
                                     )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                </div>
+              ))}
+            </div>
+          </div>
                           )}
                         </div>
                       </>
